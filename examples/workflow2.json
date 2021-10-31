@@ -1,0 +1,38 @@
+[
+    {
+      "first_step": {
+        "call": "http.get",
+        "args": {
+          "url": "http://localhost:1234/callA"
+        },
+        "next": "third_step"
+      }
+    },
+    {
+      "third_step": {
+        "call": "http.get",
+        "args": {
+          "url": "http://localhost:1234/callB"
+        },
+        "next": "fourth_step"
+      }
+    },
+    {
+      "second_step": {
+        "call": "http.get",
+        "args": {
+          "url": "http://localhost:1234/callC"
+        },
+        "next": "end"
+      }
+    },
+    {
+      "fourth_step": {
+        "call": "http.get",
+        "args": {
+          "url": "http://localhost:1234/callD"
+        },
+        "next": "second_step"
+      }
+    }
+]

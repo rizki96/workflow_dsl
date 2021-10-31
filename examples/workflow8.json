@@ -1,0 +1,80 @@
+[
+    {
+      "init": {
+        "assign": [
+          {
+            "textAndSourceLang": {
+              "Hello": "en",
+              "Ciao": "it",
+              "Auf wiedersehen": "de",
+              "Goodbye": "en",
+              "Bonjour": "fr",
+              "lkajshflkj": "unknown"
+            }
+          },
+          {
+            "allowedSourceLang": [
+              "en",
+              "de",
+              "it",
+              "fr"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "translateToFrench": {
+        "for": {
+          "value": "text",
+          "in": "${keys(textAndSourceLang)}",
+          "steps": [
+            {
+              "verifySource": {
+                "switch": [
+                  {
+                    "condition": "${not(textToTranslate[text] in allowedSourceLang)}",
+                    "next": "continue"
+                  },
+                  {
+                    "condition": "${textToTranslate[text] == \"fr\"}",
+                    "next": "skipFrench"
+                  }
+                ]
+              }
+            },
+            {
+              "skipFrench": {
+                "assign": [
+                  {
+                    "translation": "text"
+                  }
+                ],
+                "next": "print"
+              }
+            },
+            {
+              "translate": {
+                "call": "googleapis.translate.v2.translations.translate",
+                "args": {
+                  "q": "text",
+                  "target": "fr",
+                  "format": "text",
+                  "source": "textToTranslate[text]"
+                },
+                "result": "translation"
+              }
+            },
+            {
+              "print": {
+                "call": "sys.log",
+                "args": {
+                  "text": "${\"original: \" + text + \", translation: \" + translation}"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+]

@@ -1,0 +1,16 @@
+{
+    "build_address": {
+      "params": [
+        "Street",
+        "ZipCode",
+        "Country: \"United States\""
+      ],
+      "steps": [
+        {
+          "concatenate": {
+            "return": "${Street + \", \" + ZipCode + \", \" + Country}"
+          }
+        }
+      ]
+    }
+}

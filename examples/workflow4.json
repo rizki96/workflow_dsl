@@ -1,0 +1,25 @@
+[
+    {
+      "update_map": {
+        "assign": [
+          {
+            "my_map": {
+              "Key1": "hello"
+            }
+          },
+          {
+            "key_str": "Key"
+          },
+          {
+            "my_map.Key1": "Value1"
+          },
+          {
+            "my_map[\"Key2\"]": "Value2"
+          },
+          {
+            "my_map[key_str + \"3\"]": "Value3"
+          }
+        ]
+      }
+    }
+]
