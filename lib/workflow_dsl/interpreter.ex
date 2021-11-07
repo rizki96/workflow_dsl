@@ -90,8 +90,10 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp command(session, uid, {:return, params}) do
-    output = CommandExecutor.execute_return(session, params)
-    Logger.log(:debug, "return: #{inspect params} #{inspect output}, session: #{inspect session}, uid: #{inspect uid}")
+    case CommandExecutor.execute_return(session, uid, params) do
+      nil -> nil
+      output -> Logger.log(:debug, "return: #{inspect params} #{inspect output}, session: #{inspect session}, uid: #{inspect uid}")
+    end
   end
 
   defp command(session, uid, {:call, params}) do
@@ -118,8 +120,34 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp command(session, uid, {:switch, params}) do
-    CommandExecutor.execute_switch(session, uid, params)
-    Logger.log(:debug, "switch: #{inspect params}, session: #{inspect session}, uid: #{uid}")
+    # TODO: - case for condition -> next
+    # TODO: - case for condition -> return
+    # TODO: - case for condition -> steps
+    result =
+    Enum.map(params, fn it ->
+      case it do
+        [["condition", cnd], ["next", nxt]] ->
+          {:next, CommandExecutor.execute_condition(session, uid, cnd), nxt}
+        [["condition", cnd], ["return", ret]] ->
+          {:return, CommandExecutor.execute_condition(session, uid, cnd), ret}
+        [["condition", cnd], ["steps", stp]] ->
+          {:steps, CommandExecutor.execute_condition(session, uid, cnd), stp}
+        _ -> nil
+      end
+    end)
+    |> Enum.filter(fn {_, cnd, _} -> cnd == true end)
+
+    case CommandExecutor.execute_switch(session, uid, Enum.at(result,0)) do
+      nil -> nil
+      res ->
+        Logger.log(:debug, "switch: #{inspect params}, session: #{inspect session}, uid: #{uid}, result: #{inspect res}")
+    end
+    #{_, next} =
+    #Enum.filter(conditions, fn {c, _next} ->
+    #  c == true
+    #end)
+    #|> Enum.at(0)
+    #command(session, uid, {:next, next})
   end
 
   defp command(session, uid, input) do

@@ -2,6 +2,7 @@ defmodule WorkflowDsl.CommandExecutor do
 
   alias WorkflowDsl.LoopExprParser
   alias WorkflowDsl.MathExprParser
+  alias WorkflowDsl.CondExprParser
   alias WorkflowDsl.Storages
   alias WorkflowDsl.JsonExprParser
   alias WorkflowDsl.Interpreter
@@ -69,14 +70,41 @@ defmodule WorkflowDsl.CommandExecutor do
     end
   end
 
-  def execute_return(session, val) do
+  def execute_return(session, uid, val) do
+    val =
     if is_binary(val) and String.starts_with?(val, "${") do
       {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
       Lang.eval(session, res)
     else
       val
     end
+
+    if Storages.count_next_execs(%{"session" => session}) > 0 do
+      case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
+        nil -> nil
+        oldest ->
+          if oldest.uid == uid do
+            timestamp = :os.system_time(:microsecond)
+            # execute_return will mark all uid as executed, once it is found the match
+            all_next = Storages.list_next_execs(%{"session" => session})
+            Enum.map(all_next, fn it ->
+              Storages.update_next_exec(it, %{
+                "is_executed" => true,
+                "updated_at" => timestamp})
+            end)
+            val
+          end
+      end
+    else
+      val
+    end
   end
+
+  #def execute_steps(session, steps) do
+  #  steps
+  #  |> JsonExprParser.convert2tuple()
+  #  |> Interpreter.process(session)
+  #end
 
   def try_execute_function(session, uid, module, name, args) do
     function =
@@ -129,7 +157,6 @@ defmodule WorkflowDsl.CommandExecutor do
                     #Logger.log(:debug, "update #{inspect next.uid}")
                     Storages.update_next_exec(next, %{
                       "is_executed" => true,
-                      "inserted_at" => timestamp,
                       "updated_at" => timestamp})
                 end
               end
@@ -234,12 +261,26 @@ defmodule WorkflowDsl.CommandExecutor do
     end
   end
 
-  def execute_switch(_session, _uid, _params) do
-
+  def execute_switch(session, uid, params) do
+    case params do
+      {:next, true, nxt} ->
+        timestamp = :os.system_time(:microsecond)
+        Storages.create_next_exec(%{"session" => session, "uid" => nxt, "is_executed" => false,
+        "inserted_at" => timestamp, "updated_at" => timestamp})
+      {:result, true, rst} ->
+        execute_result(session, uid, rst)
+      {:steps, true, stp} ->
+        stp
+        |> JsonExprParser.convert2tuple()
+        |> Interpreter.process(session)
+      _ -> nil
+    end
   end
 
-  def execute_condition(_session, _uid, _params) do
-
+  def execute_condition(session, _uid, params) do
+    {:ok, [result], _, _, _, _} = CondExprParser.parse_cond(params)
+    #Logger.log(:debug, "#{inspect result}")
+    Lang.eval(session, result)
   end
 
   def keys(map) do

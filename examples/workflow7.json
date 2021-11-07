@@ -20,7 +20,7 @@
                   "steps": [
                     {
                       "get": {
-                        "call": "http.get",
+                        "call": "http.get!",
                         "args": {
                           "url": "${\"https://example.com/getUserInfo?userId=\" + string(uid)}"
                         },
@@ -29,7 +29,7 @@
                     },
                     {
                       "post": {
-                        "call": "http.post",
+                        "call": "http.post!",
                         "args": {
                           "url": "${\"https://example.com/saveUserInfo?userId=\" + string(uid)}",
                           "body": "${userInfo}"

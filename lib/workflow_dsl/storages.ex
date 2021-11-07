@@ -106,6 +106,12 @@ defmodule WorkflowDsl.Storages do
     |> Repo.all()
   end
 
+  def list_next_execs(%{"session" => session}) do
+    NextExec
+    |> where([ne], ne.session == ^session)
+    |> Repo.all()
+  end
+
   def count_next_execs(%{"session" => session}) do
     NextExec
     |> where([ne], ne.session == ^session)
