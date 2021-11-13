@@ -3,6 +3,7 @@ defmodule WorkflowDsl.CommandExecutor do
   alias WorkflowDsl.LoopExprParser
   alias WorkflowDsl.MathExprParser
   alias WorkflowDsl.CondExprParser
+  alias WorkflowDsl.ListMapExprParser
   alias WorkflowDsl.Storages
   alias WorkflowDsl.JsonExprParser
   alias WorkflowDsl.Interpreter
@@ -59,15 +60,76 @@ defmodule WorkflowDsl.CommandExecutor do
     result =
     if is_binary(val) and String.starts_with?(val, "${") do
       {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
+      Logger.log(:debug, "#{inspect res}")
       Lang.eval(session, res)
     else
       val
     end
-    Logger.log(:debug, "valname: #{inspect valname} value: #{inspect result}")
-    case Storages.get_var_by(%{"session" => session, "name" => valname}) do
-      nil -> Storages.create_var(%{"session" => session, "name" => valname, "value" => :erlang.term_to_binary(result), "typ" => ""})
-      varvalue -> Storages.update_var(varvalue, %{"value" => :erlang.term_to_binary(result)})
+
+    # handle the mutable vars storage
+    {:ok, names, _, _, _, _} = ListMapExprParser.parse_list_map(valname)
+    #Logger.log(:debug, "I - valname: #{inspect valname}, names: #{inspect names}, result: #{inspect result}")
+    result =
+    cond do
+      Kernel.length(names) == 1 ->
+        case Storages.get_var_by(%{"session" => session, "name" => valname}) do
+          nil ->
+            Storages.create_var(%{"session" => session, "name" => valname, "value" => :erlang.term_to_binary(result), "typ" => ""})
+            result
+          varvalue ->
+            Storages.update_var(varvalue, %{"value" => :erlang.term_to_binary(result)})
+            result
+        end
+      true ->
+        # construct the key and the values, for handling complex keys
+        Enum.reduce(names, [], fn it, acc ->
+          #Logger.log(:debug, "II - it: #{inspect it}, acc: #{inspect acc}")
+
+          name = case it do
+            {:vars, n} -> Enum.join(n)
+            other -> Lang.eval(session, other)
+          end
+
+          case acc do
+            [] ->
+              case Lang.eval(session, it) do
+                nil ->
+                  Storages.create_var(%{"session" => session, "name" => name, "value" => :erlang.term_to_binary(nil), "typ" => ""})
+                  [{:name, name}, {:values, nil}]
+                varvalue ->
+                  [{:name, name}, {:values, varvalue}]
+              end
+            other ->
+              cond do
+                is_nil(other[:values]) ->
+                  if not is_nil(name) do
+                    {:name, varname} = Enum.at(acc, 0)
+                    varvalue = Storages.get_var_by(%{"session" => session, "name" => varname})
+                    Storages.update_var(varvalue, %{"value" => :erlang.term_to_binary([[name, result]])})
+                    other ++ [{:values, [[name, result]]}]
+                  end
+                is_list(other[:values]) ->
+                  if not is_nil(name) do
+                    #Logger.log(:debug, "acc: #{inspect acc}")
+                    {:name, varname} = Enum.at(acc, 0)
+                    varvalue = Storages.get_var_by(%{"session" => session, "name" => varname})
+                    vals = Enum.filter(other[:values], fn [k,_] -> k != name end)
+                    Storages.update_var(varvalue, %{"value" => :erlang.term_to_binary(vals ++ [[name, result]])})
+                    other ++ [{:values, vals ++ [[name, result]]}]
+                  end
+                true ->
+                  if not is_nil(name) do
+                    {:name, varname} = Enum.at(acc, 0)
+                    varvalue = Storages.get_var_by(%{"session" => session, "name" => varname})
+                    vals = Enum.filter(Lang.eval(session, it), fn [k,_] -> k != name end)
+                    Storages.update_var(varvalue, %{"value" => :erlang.term_to_binary(vals ++ [[name, result]])})
+                    other ++ [{:values, vals ++ [[name, result]]}]
+                  end
+              end
+          end
+        end)
     end
+    Logger.log(:debug, "valname: #{inspect valname}, value: #{inspect result}")
   end
 
   def execute_return(session, uid, val) do

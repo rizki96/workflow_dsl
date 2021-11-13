@@ -1,6 +1,7 @@
 defmodule WorkflowDsl.Lang do
 
   alias WorkflowDsl.Storages
+  alias WorkflowDsl.ListMapExprParser
 
   #require Logger
 
@@ -11,44 +12,52 @@ defmodule WorkflowDsl.Lang do
   def eval(session, {:rem, [val0, val1]}), do: rem(eval(session, val0), eval(session, val1))
   def eval(session, {:flr, [val0, val1]}), do: floor(eval(session, val0) / eval(session, val1))
   def eval(session, {:vars, [val0, val1]}) do
-    # TODO: complete the condition below
+    {:ok, names, _, _, _, _} = ListMapExprParser.parse_list_map(val0 <> val1)
+    #Logger.log(:debug, "names: #{inspect names}")
+
+    result =
     cond do
-      String.contains?(val1, "[") and String.contains?(val1, "]") ->
-        container = eval(session, {:vars, [val0]})
-        idx = String.replace(val1, ["[", "]"], "")
-        if length(Enum.at(container, 0)) == 2 do
-          # map
-          index = eval(session, {:vars, [idx]})
-          map = Enum.into(container, %{}, fn [k, v] -> {k, v} end)
-          map[index]
-        else
-          # list
-          container[String.to_integer(idx)]
-        end
-      String.contains?(val1, ".") ->
-        container = eval(session, {:vars, [val0]})
-        if is_map(container) do
-          keys = String.split(val1, ".")
-          result =
-          keys
-          |> Enum.filter(fn it -> it != "" end)
-          |> Enum.reduce(nil, fn k, acc ->
-            case acc do
-              nil ->
-                k = if not Map.has_key?(container, k), do: String.to_atom(k), else: k
-                container[k]
-              other ->
-                k = if not Map.has_key?(other, k), do: String.to_atom(k), else: k
-                other[k]
-              end
-          end)
-          result
-        else
-          container
-        end
-      true ->
+      Kernel.length(names) == 1 ->
         eval(session, {:vars, [val0 <> val1]})
+
+      true ->
+        # construct the key and the values
+        #Logger.log(:debug, "start construct: #{inspect names}")
+
+        Enum.reduce(names, nil, fn it, acc ->
+          #Logger.log(:debug, "acc: #{inspect acc}, it: #{inspect it}")
+
+          cond do
+            acc == nil -> eval(session, it)
+            is_list(acc) ->
+              #Logger.log(:debug, "type: list")
+              case Enum.at(acc, 0) do
+                [_, _] ->
+                  map = Enum.into(acc, %{}, fn [k, v] -> {k, v} end)
+                  k = if not Map.has_key?(map, eval(session, it)), do: String.to_atom(eval(session, it)), else: eval(session, it)
+                  map[k]
+                _ ->
+                  acc[eval(session, it)]
+              end
+            is_map(acc) ->
+              #Logger.log(:debug, "type: map")
+              key =
+              case eval(session, it) do
+                nil ->
+                  {:vars, n} = it
+                  Enum.join(n)
+                k -> k
+              end
+              k = if not Map.has_key?(acc, key), do: String.to_atom(key), else: key
+              acc[k]
+            true ->
+              #Logger.log(:debug, "type: default")
+              eval(session, it)
+          end
+        end)
     end
+    #Logger.log(:debug, "vars result: #{inspect result}")
+    result
   end
   def eval(session, {:add, [val0, val1]}) do
     eval0 = eval(session, val0)
@@ -73,7 +82,10 @@ defmodule WorkflowDsl.Lang do
   def eval(_session, {:bool, [val]}), do: String.to_existing_atom(String.downcase(val))
   def eval(session, {:vars, [val]}) do
     var = Storages.get_var_by(%{"session" => session, "name" => val})
-    :erlang.binary_to_term(var.value)
+    case var do
+      nil -> nil
+      v -> :erlang.binary_to_term(v.value)
+    end
   end
   def eval(session, {:neg_vars, [val]}) do
     -eval(session, val)
