@@ -1,67 +1,38 @@
 [
     {
-      "getUserIDs": {
-        "call": "http.get",
-        "args": {
-          "url": "https://example.com/getUserIDs"
-        },
-        "result": "userIds"
+      "assignStep": {
+        "assign": [
+          {
+            "sum": 0
+          }
+        ]
       }
     },
     {
-      "saveUserInfo": {
+      "loopStep": {
         "for": {
-          "value": "uid",
-          "in": "${userIds}",
+          "value": "v",
+          "range": [
+            1,
+            9
+          ],
           "steps": [
             {
-              "tryStep": {
-                "try": {
-                  "steps": [
-                    {
-                      "get": {
-                        "call": "http.get!",
-                        "args": {
-                          "url": "${\"https://example.com/getUserInfo?userId=\" + string(uid)}"
-                        },
-                        "result": "userInfo"
-                      }
-                    },
-                    {
-                      "post": {
-                        "call": "http.post!",
-                        "args": {
-                          "url": "${\"https://example.com/saveUserInfo?userId=\" + string(uid)}",
-                          "body": "${userInfo}"
-                        }
-                      }
-                    }
-                  ]
-                },
-                "except": {
-                  "as": "e",
-                  "steps": [
-                    {
-                      "knownErrors": {
-                        "switch": [
-                          {
-                            "condition": "${not(\"HttpError\" in e.tags)}",
-                            "return": "${\"Connection problem with userID: \" + string(uid)}"
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "unhandledErrors": {
-                        "raise": "${e}"
-                      }
-                    }
-                  ]
-                }
+              "sumStep": {
+                "assign": [
+                  {
+                    "sum": "${sum + v}"
+                  }
+                ]
               }
             }
           ]
         }
+      }
+    },
+    {
+      "returnStep": {
+        "return": "${sum}"
       }
     }
 ]
