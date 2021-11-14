@@ -3,7 +3,7 @@
       "getUserIDs": {
         "call": "http.get",
         "args": {
-          "url": "https://example.com/getUserIDs"
+          "url": "http://localhost:1234/getUserIDs"
         },
         "result": "userIds"
       }
@@ -22,7 +22,7 @@
                       "get": {
                         "call": "http.get!",
                         "args": {
-                          "url": "${\"https://example.com/getUserInfo?userId=\" + string(uid)}"
+                          "url": "${\"http://localhost:1234/getUserInfo?userId=\" + string(uid)}"
                         },
                         "result": "userInfo"
                       }
@@ -31,7 +31,7 @@
                       "post": {
                         "call": "http.post!",
                         "args": {
-                          "url": "${\"https://example.com/saveUserInfo?userId=\" + string(uid)}",
+                          "url": "${\"http://localhost:1234/saveUserInfo?userId=\" + string(uid)}",
                           "body": "${userInfo}"
                         }
                       }

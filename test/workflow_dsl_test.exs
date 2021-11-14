@@ -42,17 +42,6 @@ defmodule WorkflowDslTest do
   end
 
   #@tag :skip
-  test "expression for_range parser" do
-    #input = [1,9]
-    #input = "${keys(map)}"
-    #output = input |> WorkflowDsl.LoopExprParser.parse_for_range()
-    #Logger.log(:debug, "loop expression ${keys(map)}: #{inspect output}")
-    #input = "${list}"
-    #output = input |> WorkflowDsl.LoopExprParser.parse_for_range()
-    #Logger.log(:debug, "loop expression ${list}: #{inspect output}")
-  end
-
-  #@tag :skip
   test "expression for math ops" do
     input = "${sum + map[key]}"
     output = input |> WorkflowDsl.MathExprParser.parse_math()

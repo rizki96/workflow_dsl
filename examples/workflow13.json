@@ -3,7 +3,7 @@
       "first_step": {
         "call": "http.get",
         "args": {
-          "url": "https://www.example.com/callA"
+          "url": "http://localhost:1234/callAFirstStep"
         },
         "result": "first_result"
       }
@@ -27,7 +27,7 @@
       "small": {
         "call": "http.get",
         "args": {
-          "url": "https://www.example.com/SmallFunc"
+          "url": "http://localhost:1234/SmallFunc"
         },
         "next": "end"
       }
@@ -36,7 +36,7 @@
       "medium": {
         "call": "http.get",
         "args": {
-          "url": "https://www.example.com/MediumFunc"
+          "url": "http://localhost:1234/MediumFunc"
         },
         "next": "end"
       }
@@ -45,7 +45,7 @@
       "large": {
         "call": "http.get",
         "args": {
-          "url": "https://www.example.com/LargeFunc"
+          "url": "http://localhost:1234/LargeFunc"
         },
         "next": "end"
       }

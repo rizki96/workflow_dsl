@@ -1,79 +1,51 @@
 [
     {
-      "init": {
+      "define": {
         "assign": [
           {
-            "textAndSourceLang": {
-              "Hello": "en",
-              "Ciao": "it",
-              "Auf wiedersehen": "de",
-              "Goodbye": "en",
-              "Bonjour": "fr",
-              "lkajshflkj": "unknown"
-            }
+            "array": [
+              "foo",
+              "ba",
+              "r"
+            ]
           },
           {
-            "allowedSourceLang": [
-              "en",
-              "de",
-              "it",
-              "fr"
-            ]
+            "result": ""
+          },
+          {
+            "i": 0
           }
         ]
       }
     },
     {
-      "translateToFrench": {
-        "for": {
-          "value": "text",
-          "in": "${keys(textAndSourceLang)}",
-          "steps": [
-            {
-              "verifySource": {
-                "switch": [
-                  {
-                    "condition": "${not(textToTranslate[text] in allowedSourceLang)}",
-                    "next": "continue"
-                  },
-                  {
-                    "condition": "${textToTranslate[text] == \"fr\"}",
-                    "next": "skipFrench"
-                  }
-                ]
-              }
-            },
-            {
-              "skipFrench": {
-                "assign": [
-                  {
-                    "translation": "text"
-                  }
-                ],
-                "next": "print"
-              }
-            },
-            {
-              "translate": {
-                "call": "googleapis.translate.v2.translations.translate",
-                "args": {
-                  "q": "text",
-                  "target": "fr",
-                  "format": "text",
-                  "source": "textToTranslate[text]"
-                },
-                "result": "translation"
-              }
-            },
-            {
-              "print": {
-                "call": "sys.log",
-                "args": {
-                  "text": "${\"original: \" + text + \", translation: \" + translation}"
-                }
-              }
-            }
-          ]
+      "check_condition": {
+        "switch": [
+          {
+            "condition": "${len(array) > i}",
+            "next": "iterate"
+          }
+        ],
+        "next": "exit_loop"
+      }
+    },
+    {
+      "iterate": {
+        "assign": [
+          {
+            "result": "${result + array[i]}"
+          },
+          {
+            "i": "${i+1}"
+          }
+        ],
+        "next": "check_condition"
+      }
+    },
+    {
+      "exit_loop": {
+        "return": {
+          "concat_result": "${result}"
         }
       }
     }
