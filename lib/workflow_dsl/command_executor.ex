@@ -96,7 +96,7 @@ defmodule WorkflowDsl.CommandExecutor do
         true ->
           {reach_min, reach_max}
       end
-    frac = if max(frac_min, frac_max) == 0, do: 1, else: Float.pow(0.1, max(frac_min, frac_max))
+    frac = if frac_min == 0 and frac_max == 0, do: 1, else: Float.pow(0.1, max(frac_min, frac_max))
 
     {Range.new(reach_min, reach_max), frac}
   end
