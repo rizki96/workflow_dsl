@@ -24,7 +24,7 @@
               "checkTemp": {
                 "call": "http.get",
                 "args": {
-                  "url": "${\"https://example.com/isBodyTempNormal?temp=\" + string(temp)}"
+                  "url": "${\"https://localhost:1234/isBodyTempNormal?temp=\" + string(temp)}"
                 },
                 "result": "isNormal"
               }
@@ -44,7 +44,7 @@
               "storeTemp": {
                 "call": "http.post",
                 "args": {
-                  "url": "${\"https://example.com/storeTemp?temp=\" + string(temp)}"
+                  "url": "${\"https://localhost:1234/storeTemp?temp=\" + string(temp)}"
                 },
                 "body": "${temp}"
               }
