@@ -12,6 +12,7 @@ defmodule WorkflowDsl.CommandExecutor do
   require Logger
 
   def execute_for_in(session, init_val, input, steps, index \\ "index") do
+    #Logger.log(:debug, "input: #{inspect input}, init_val: #{inspect init_val}, steps: #{inspect steps}, index: #{inspect index}")
     {:ok, result, _, _, _, _} = LoopExprParser.parse_for_in(input)
     Enum.map(result, fn res ->
       case res do
@@ -47,12 +48,66 @@ defmodule WorkflowDsl.CommandExecutor do
     end)
   end
 
-  # TODO:
-  def execute_for_range(session, _init_val, _input, _steps, index \\ "index") do
+  def execute_for_range(session, init_val, input, steps, index \\ "index") do
+    [min, max] = input
+    #Logger.log(:debug, "input min: #{inspect min}, input max: #{inspect max}, init_val: #{inspect init_val}, steps: #{inspect steps}, index: #{inspect index}")
+    {range, frac} =
+    cond do
+      is_binary(min) and is_binary(max) ->
+        {:ok, [res_min], _, _, _, _} = MathExprParser.parse_math(min)
+        {:ok, [res_max], _, _, _, _} = MathExprParser.parse_math(max)
 
-    case Storages.get_var_by(%{"name" => index}) do
-      nil -> Storages.create_var(%{"session" => session, "name" => index, "value" => :erlang.term_to_binary(0)})
-      var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(0)})
+        {reach_min, frac_min} = reach_to_integer(Lang.eval(session, res_min))
+        {reach_max, frac_max} = reach_to_integer(Lang.eval(session, res_max))
+
+        create_range_frac(reach_min, frac_min, reach_max, frac_max)
+      true ->
+        {reach_min, frac_min} = reach_to_integer(min)
+        {reach_max, frac_max} = reach_to_integer(max)
+        create_range_frac(reach_min, frac_min, reach_max, frac_max)
+    end
+
+    Enum.with_index(range)
+    |> Enum.each(fn {it, idx} ->
+      number = it * frac
+      case Storages.get_var_by(%{"session" => session, "name" => index}) do
+        nil -> Storages.create_var(%{"session" => session, "name" => index, "value" => :erlang.term_to_binary(idx)})
+        var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(idx)})
+      end
+
+      case Storages.get_var_by(%{"session" => session, "name" => init_val}) do
+        nil -> Storages.create_var(%{"session" => session, "name" => init_val, "value" => :erlang.term_to_binary(number)})
+        var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(number)})
+      end
+
+      steps
+      |> JsonExprParser.convert2tuple()
+      |> Interpreter.process(session)
+    end)
+  end
+
+  defp create_range_frac(reach_min, frac_min, reach_max, frac_max) do
+    {reach_min, reach_max} =
+      cond do
+        frac_min > frac_max ->
+          {reach_min, reach_max * Integer.pow(10, (frac_min - frac_max))}
+        frac_max > frac_min ->
+          {reach_min * Integer.pow(10, (frac_max - frac_min)), reach_max}
+        true ->
+          {reach_min, reach_max}
+      end
+    frac = if max(frac_min, frac_max) == 0, do: 1, else: Float.pow(0.1, max(frac_min, frac_max))
+
+    {Range.new(reach_min, reach_max), frac}
+  end
+
+  defp reach_to_integer(val, frac \\ 0) do
+    str_val = Integer.to_string(val)
+    case String.split(str_val, ".") do
+      [_, chk_val] ->
+        if chk_val != "0", do: reach_to_integer(val*10, frac + 1), else: {val, frac}
+      _ ->
+        {val, frac}
     end
   end
 
@@ -60,7 +115,7 @@ defmodule WorkflowDsl.CommandExecutor do
     result =
     if is_binary(val) and String.starts_with?(val, "${") do
       {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
-      Logger.log(:debug, "#{inspect res}")
+      #Logger.log(:debug, "#{inspect res}")
       Lang.eval(session, res)
     else
       val

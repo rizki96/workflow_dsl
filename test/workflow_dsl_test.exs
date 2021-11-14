@@ -22,7 +22,7 @@ defmodule WorkflowDslTest do
       Plug.Conn.resp(conn, 200, "")
     end)
 
-    for n <- 1..6 do
+    for n <- 1..7 do
       rand = Randomizer.randomizer(8)
       output = "./examples/workflow#{n}.json"
         |> WorkflowDsl.JsonExprParser.process(:file)
@@ -32,13 +32,24 @@ defmodule WorkflowDslTest do
   end
 
   #@tag :skip
-  test "expression for in parser" do
+  test "expression for_in parser" do
     input = "${keys(map)}"
     output = input |> WorkflowDsl.LoopExprParser.parse_for_in()
     Logger.log(:debug, "loop expression ${keys(map)}: #{inspect output}")
     input = "${list}"
     output = input |> WorkflowDsl.LoopExprParser.parse_for_in()
     Logger.log(:debug, "loop expression ${list}: #{inspect output}")
+  end
+
+  #@tag :skip
+  test "expression for_range parser" do
+    #input = [1,9]
+    #input = "${keys(map)}"
+    #output = input |> WorkflowDsl.LoopExprParser.parse_for_range()
+    #Logger.log(:debug, "loop expression ${keys(map)}: #{inspect output}")
+    #input = "${list}"
+    #output = input |> WorkflowDsl.LoopExprParser.parse_for_range()
+    #Logger.log(:debug, "loop expression ${list}: #{inspect output}")
   end
 
   #@tag :skip
@@ -120,5 +131,4 @@ defmodule WorkflowDslTest do
     output = WorkflowDsl.Lang.eval(rand, result)
     Logger.log(:debug, "result for math op #{input}: #{inspect output}")
   end
-
 end

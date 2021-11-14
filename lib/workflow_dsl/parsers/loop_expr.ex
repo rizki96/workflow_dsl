@@ -36,11 +36,11 @@ defmodule WorkflowDsl.LoopExprParser do
 
   defcombinatorp(:neg_vars, neg_vars)
 
-  neg_number =
-    utf8_string([?0..?9, ?., ?-], min: 1)
-    |> tag(:neg_number)
+  double_number =
+    utf8_string([?0..?9, ?., ?-], min: 2)
+    |> tag(:double)
 
-  defcombinatorp(:neg_number, neg_number)
+  defcombinatorp(:double_number, double_number)
 
   str =
     ignore(utf8_char([?"]))
@@ -88,7 +88,7 @@ defmodule WorkflowDsl.LoopExprParser do
     |> choice([
       integer(min: 1) |> tag(:int),
       parsec(:return_int),
-      parsec(:neg_number),
+      parsec(:double_number),
       ignore(string("${"))
       |> parsec(:neg_vars)
       |> ignore(string("}")),

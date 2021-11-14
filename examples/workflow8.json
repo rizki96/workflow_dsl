@@ -3,78 +3,54 @@
       "init": {
         "assign": [
           {
-            "textAndSourceLang": {
-              "Hello": "en",
-              "Ciao": "it",
-              "Auf wiedersehen": "de",
-              "Goodbye": "en",
-              "Bonjour": "fr",
-              "lkajshflkj": "unknown"
-            }
+            "minTemp": -14.5
           },
           {
-            "allowedSourceLang": [
-              "en",
-              "de",
-              "it",
-              "fr"
-            ]
+            "maxTemp": 42.8
           }
         ]
       }
     },
     {
-      "translateToFrench": {
+      "storeNormalBodyTemp": {
         "for": {
-          "value": "text",
-          "in": "${keys(textAndSourceLang)}",
+          "value": "temp",
+          "range": [
+            "${minTemp}",
+            "${maxTemp}"
+          ],
           "steps": [
             {
-              "verifySource": {
+              "checkTemp": {
+                "call": "http.get",
+                "args": {
+                  "url": "${\"https://example.com/isBodyTempNormal?temp=\" + string(temp)}"
+                },
+                "result": "isNormal"
+              }
+            },
+            {
+              "storeOrBreak": {
                 "switch": [
                   {
-                    "condition": "${not(textToTranslate[text] in allowedSourceLang)}",
-                    "next": "continue"
-                  },
-                  {
-                    "condition": "${textToTranslate[text] == \"fr\"}",
-                    "next": "skipFrench"
-                  }
-                ]
-              }
-            },
-            {
-              "skipFrench": {
-                "assign": [
-                  {
-                    "translation": "text"
+                    "condition": "${isNormal}",
+                    "next": "storeTemp"
                   }
                 ],
-                "next": "print"
+                "next": "break"
               }
             },
             {
-              "translate": {
-                "call": "googleapis.translate.v2.translations.translate",
+              "storeTemp": {
+                "call": "http.post",
                 "args": {
-                  "q": "text",
-                  "target": "fr",
-                  "format": "text",
-                  "source": "textToTranslate[text]"
+                  "url": "${\"https://example.com/storeTemp?temp=\" + string(temp)}"
                 },
-                "result": "translation"
-              }
-            },
-            {
-              "print": {
-                "call": "sys.log",
-                "args": {
-                  "text": "${\"original: \" + text + \", translation: \" + translation}"
-                }
+                "body": "${temp}"
               }
             }
           ]
         }
       }
     }
-]
+  ]

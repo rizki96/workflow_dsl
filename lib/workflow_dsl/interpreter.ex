@@ -120,9 +120,9 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp command(session, uid, {:switch, params}) do
-    # TODO: - case for condition -> next
-    # TODO: - case for condition -> return
-    # TODO: - case for condition -> steps
+    # case for condition -> next
+    # case for condition -> return
+    # case for condition -> steps
     result =
     Enum.map(params, fn it ->
       case it do
@@ -142,12 +142,6 @@ defmodule WorkflowDsl.Interpreter do
       res ->
         Logger.log(:debug, "switch: #{inspect params}, session: #{inspect session}, uid: #{uid}, result: #{inspect res}")
     end
-    #{_, next} =
-    #Enum.filter(conditions, fn {c, _next} ->
-    #  c == true
-    #end)
-    #|> Enum.at(0)
-    #command(session, uid, {:next, next})
   end
 
   defp command(session, uid, input) do
