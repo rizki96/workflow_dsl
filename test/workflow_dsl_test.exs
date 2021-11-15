@@ -17,12 +17,19 @@ defmodule WorkflowDslTest do
 
   #@tag :skip
   test "workflows object translate to command", %{bypass: bypass} do
-    Bypass.expect(bypass, fn conn ->
-      # We don't care about `request_path` or `method` for this test.
-      Plug.Conn.resp(conn, 200, "")
+    Bypass.expect(bypass, "GET", "/isBodyTempNormal", fn conn ->
+      params = Plug.Conn.fetch_query_params(conn)
+      temp = String.to_float(params.query_params["temp"])
+      isNormal = if temp >= -14.3 and temp <= -14.0, do: true, else: false
+      Logger.log(:debug, "#{inspect temp} #{inspect isNormal}")
+      Plug.Conn.resp(conn, 200, "#{isNormal}")
     end)
+    #Bypass.expect(bypass, fn conn ->
+    #  # We don't care about `request_path` or `method` for this test.
+    #  Plug.Conn.resp(conn, 200, "")
+    #end)
 
-    for n <- 1..7 do
+    for n <- 8..8 do
       rand = Randomizer.randomizer(8)
       output = "./examples/workflow#{n}.json"
         |> WorkflowDsl.JsonExprParser.process(:file)
@@ -31,7 +38,7 @@ defmodule WorkflowDslTest do
     end
   end
 
-  #@tag :skip
+  @tag :skip
   test "expression for_in parser" do
     input = "${keys(map)}"
     output = input |> WorkflowDsl.LoopExprParser.parse_for_in()
@@ -41,7 +48,7 @@ defmodule WorkflowDslTest do
     Logger.log(:debug, "loop expression ${list}: #{inspect output}")
   end
 
-  #@tag :skip
+  @tag :skip
   test "expression for math ops" do
     input = "${sum + map[key]}"
     output = input |> WorkflowDsl.MathExprParser.parse_math()
@@ -64,7 +71,7 @@ defmodule WorkflowDslTest do
     Logger.log(:debug, "math expression #{input}: #{inspect output}")
   end
 
-  #@tag :skip
+  @tag :skip
   test "expression for logical ops" do
     input = "${currentTime.body.dayOfTheWeek == \"Friday\"}"
     output = input |> WorkflowDsl.CondExprParser.parse_cond()
@@ -87,7 +94,7 @@ defmodule WorkflowDslTest do
     Logger.log(:debug, "cond expression #{input}: #{inspect output}")
   end
 
-  #@tag :skip
+  @tag :skip
   test "expression for list and map" do
     input = "my_map.Key1"
     output = input |> WorkflowDsl.ListMapExprParser.parse_list_map()
@@ -106,7 +113,7 @@ defmodule WorkflowDslTest do
     Logger.log(:debug, "list_map expression #{input}: #{inspect output}")
   end
 
-  #@tag :skip
+  @tag :skip
   test "eval math expression" do
     input = "${(1.0 * (2 + -3.5)) * 4}"
     {:ok, [result], _, _, _, _} = input |> WorkflowDsl.MathExprParser.parse_math()

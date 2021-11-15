@@ -3,11 +3,11 @@ defmodule WorkflowDsl.Interpreter do
   require Logger
 
   alias WorkflowDsl.CommandExecutor
+  alias WorkflowDsl.Storages
 
   @default_module_prefix "Elixir.WorkflowDsl"
 
   def process(input, session) when is_list(input) do
-    # generate session
     Enum.map(input, fn {_, code} ->
       convert2key(code)
     end)
@@ -19,11 +19,28 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp execute(code, session) do
+    # clear state
+    Enum.map(code, fn {k, _} ->
+      clear(session, k)
+    end)
     Enum.map(code, fn {k, v} ->
       Enum.map(v, fn p ->
         command(session, k, p)
       end)
     end)
+  end
+
+  defp clear(session, uid) do
+    #Logger.log(:debug, "clear session: #{session}, uid: #{uid}")
+    case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
+      nil -> nil
+      func -> Storages.delete_function(func)
+    end
+
+    case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
+      nil -> nil
+      next_exec -> Storages.delete_next_exec(next_exec)
+    end
   end
 
   defp convert2key(code) do
@@ -142,6 +159,10 @@ defmodule WorkflowDsl.Interpreter do
       res ->
         Logger.log(:debug, "switch: #{inspect params}, session: #{inspect session}, uid: #{uid}, result: #{inspect res}")
     end
+  end
+
+  defp command(session, uid, {:body, params}) do
+    Logger.log(:debug, "body: #{inspect params}, session: #{inspect session}, uid: #{uid}")
   end
 
   defp command(session, uid, input) do

@@ -16,9 +16,19 @@ defmodule WorkflowDsl.Http do
     end
   end
 
-  #def post(url, headers, body) do
-  #
-  #end
+  def post(params, body) do
+    Logger.log(:debug, "execute :post, params: #{inspect params} #{inspect body}")
+
+    case params do
+      [["url", url]] ->
+        Req.request(:post, url, body: body)
+
+      [["url", url], ["headers", headers]] ->
+        Req.request(:post, url, headers: headers, body: body)
+
+      _ -> nil
+    end
+  end
 
   #def update(url, headers, body) do
   #

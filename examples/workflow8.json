@@ -6,7 +6,7 @@
             "minTemp": -14.5
           },
           {
-            "maxTemp": 42.8
+            "maxTemp": -14.0
           }
         ]
       }
@@ -33,7 +33,7 @@
               "storeOrBreak": {
                 "switch": [
                   {
-                    "condition": "${isNormal}",
+                    "condition": "${isNormal.body == \"true\"}",
                     "next": "storeTemp"
                   }
                 ],

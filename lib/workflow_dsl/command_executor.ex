@@ -60,11 +60,12 @@ defmodule WorkflowDsl.CommandExecutor do
         {reach_min, frac_min} = reach_to_integer(Lang.eval(session, res_min))
         {reach_max, frac_max} = reach_to_integer(Lang.eval(session, res_max))
 
-        create_range_frac(reach_min, frac_min, reach_max, frac_max)
+        create_range(reach_min, frac_min, reach_max, frac_max)
       true ->
         {reach_min, frac_min} = reach_to_integer(min)
         {reach_max, frac_max} = reach_to_integer(max)
-        create_range_frac(reach_min, frac_min, reach_max, frac_max)
+
+        create_range(reach_min, frac_min, reach_max, frac_max)
     end
 
     Enum.with_index(range)
@@ -86,28 +87,40 @@ defmodule WorkflowDsl.CommandExecutor do
     end)
   end
 
+  defp create_range(reach_min, frac_min, reach_max, frac_max) do
+    if frac_min > 0 or frac_max > 0 do
+      create_range_frac(reach_min, frac_min, reach_max, frac_max)
+    else
+      {Range.new(reach_min, reach_max), 1}
+    end
+  end
+
   defp create_range_frac(reach_min, frac_min, reach_max, frac_max) do
     {reach_min, reach_max} =
       cond do
         frac_min > frac_max ->
-          {reach_min, reach_max * Integer.pow(10, (frac_min - frac_max))}
+          {reach_min, reach_max * Float.pow(10.0, (frac_min - frac_max))}
         frac_max > frac_min ->
-          {reach_min * Integer.pow(10, (frac_max - frac_min)), reach_max}
+          {reach_min * Float.pow(10.0, (frac_max - frac_min)), reach_max}
         true ->
           {reach_min, reach_max}
       end
-    frac = if frac_min == 0 and frac_max == 0, do: 1, else: Float.pow(0.1, max(frac_min, frac_max))
+    frac = if frac_min == 0.0 and frac_max == 0.0, do: 1.0, else: Float.pow(0.1, max(frac_min, frac_max))
 
-    {Range.new(reach_min, reach_max), frac}
+    {Range.new(trunc(reach_min), trunc(reach_max)), frac}
   end
 
-  defp reach_to_integer(val, frac \\ 0) do
-    str_val = Integer.to_string(val)
-    case String.split(str_val, ".") do
-      [_, chk_val] ->
-        if chk_val != "0", do: reach_to_integer(val*10, frac + 1), else: {val, frac}
-      _ ->
-        {val, frac}
+  defp reach_to_integer(orig_val, frac \\ 0) do
+    if is_float(orig_val) do
+      str_val = Float.to_string(orig_val)
+      case String.split(str_val, ".") do
+        [_, chk_val] ->
+          if chk_val != "0", do: reach_to_integer(orig_val*10.0, frac + 1.0), else: {orig_val, frac}
+        _ ->
+          {orig_val, frac}
+      end
+    else
+      {orig_val, frac}
     end
   end
 
@@ -115,7 +128,6 @@ defmodule WorkflowDsl.CommandExecutor do
     result =
     if is_binary(val) and String.starts_with?(val, "${") do
       {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
-      #Logger.log(:debug, "#{inspect res}")
       Lang.eval(session, res)
     else
       val
@@ -228,32 +240,57 @@ defmodule WorkflowDsl.CommandExecutor do
     case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
       nil -> cond do
         not is_nil(name) ->
-          #Logger.log(:debug, "Module: #{inspect module} #{inspect name}")
+          #Logger.log(:debug, "Create Module: #{inspect module} #{inspect name}")
           Storages.create_function(%{"session" => session, "uid" => uid, "module" => :erlang.term_to_binary(module), "name" => :erlang.term_to_binary(name)})
         not is_nil(args) ->
-          #Logger.log(:debug, "Args: #{inspect args}")
+          args = Enum.map(args, fn arg ->
+            case arg do
+              [k, val] ->
+                if String.starts_with?(val, "${") and String.ends_with?(val, "}") do
+                  {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
+                  Lang.eval(session, res)
+                else
+                  [k, val]
+                end
+              other -> other
+            end
+          end)
+          #Logger.log(:debug, "Create Args: #{inspect args}")
           Storages.create_function(%{"session" => session, "uid" => uid, "args" => :erlang.term_to_binary(args)})
         true -> {:error, nil}
       end
       func -> cond do
         not is_nil(name) and is_nil(func.name) ->
-          #Logger.log(:debug, "Module: #{inspect module} #{inspect name}")
+          #Logger.log(:debug, "Update Module: #{inspect module} #{inspect name}")
           Storages.update_function(func, %{"name" => :erlang.term_to_binary(name), "module" => :erlang.term_to_binary(module)})
         not is_nil(args) and is_nil(func.args) ->
-          #Logger.log(:debug, "Args: #{inspect args}")
+          args = Enum.map(args, fn arg ->
+            case arg do
+              [k, val] ->
+                if is_binary(val) and String.starts_with?(val, "${") do
+                  {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
+                  [k, Lang.eval(session, res)]
+                else
+                  [k, val]
+                end
+              other -> other
+            end
+          end)
+          #Logger.log(:debug, "Update Args: #{inspect args}")
           Storages.update_function(func, %{"args" => :erlang.term_to_binary(args)})
         true ->
           if not is_nil(func.executed_at), do: {:error, func}, else: {:ok, func}
       end
     end
 
+    # TRACE: error after clear state
     case function do
       {:ok, func} ->
         if Storages.count_next_execs(%{"session" => session}) > 0 do
           case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
             nil -> nil
             oldest ->
-              #Logger.log(:debug, "try_execute_function: #{inspect oldest}")
+              #Logger.log(:debug, "try_execute_function: #{inspect oldest} #{inspect func}")
               if not is_nil(func.name) and not is_nil(func.args)
                 and oldest.uid == func.uid do
                 result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
@@ -308,7 +345,7 @@ defmodule WorkflowDsl.CommandExecutor do
         is_executed = if not is_nil(func), do: not is_nil(func.executed_at), else: false
         Storages.create_next_exec(%{"session" => session, "uid" => uid, "next_uid" => params, "is_executed" => is_executed,
           "inserted_at" => timestamp, "updated_at" => timestamp})
-        if params != "end" do
+        if params != "end" and params != "break" do
           func = Storages.get_function_by(%{"session" => session, "uid" => params})
           is_executed = if not is_nil(func), do: not is_nil(func.executed_at), else: false
           case Storages.get_next_exec_by(%{"session" => session, "uid" => params}) do
@@ -328,7 +365,7 @@ defmodule WorkflowDsl.CommandExecutor do
         is_executed = if not is_nil(func), do: not is_nil(func.executed_at), else: false
         Storages.update_next_exec(next, %{"next_uid" => params, "is_executed" => is_executed,
           "updated_at" => timestamp})
-        if params != "end" do
+        if params != "end" and params != "break" do
           func = Storages.get_function_by(%{"session" => session, "uid" => params})
           is_executed = if not is_nil(func), do: not is_nil(func.executed_at), else: false
           case Storages.get_next_exec_by(%{"session" => session, "uid" => params}) do
