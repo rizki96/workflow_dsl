@@ -465,15 +465,6 @@ defmodule WorkflowDsl.CommandExecutor do
     end
   end
 
-  def keys(map) do
-    Enum.map(map, fn it ->
-      cond do
-        is_list(it) -> Enum.at(it, 0)
-        true -> nil
-      end
-    end) |> Enum.filter(fn it -> it != nil end)
-  end
-
   #def string(val) do
   #
   #end
