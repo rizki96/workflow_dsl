@@ -1,66 +1,51 @@
 [
     {
-      "getUserIDs": {
-        "call": "http.get",
-        "args": {
-          "url": "http://localhost:1234/getUserIDs"
-        },
-        "result": "userIds"
+      "define": {
+        "assign": [
+          {
+            "array": [
+              "foo",
+              "ba",
+              "r"
+            ]
+          },
+          {
+            "result": ""
+          },
+          {
+            "i": 0
+          }
+        ]
       }
     },
     {
-      "saveUserInfo": {
-        "for": {
-          "value": "uid",
-          "in": "${userIds}",
-          "steps": [
-            {
-              "tryStep": {
-                "try": {
-                  "steps": [
-                    {
-                      "get": {
-                        "call": "http.get!",
-                        "args": {
-                          "url": "${\"http://localhost:1234/getUserInfo?userId=\" + string(uid)}"
-                        },
-                        "result": "userInfo"
-                      }
-                    },
-                    {
-                      "post": {
-                        "call": "http.post!",
-                        "args": {
-                          "url": "${\"http://localhost:1234/saveUserInfo?userId=\" + string(uid)}",
-                          "body": "${userInfo}"
-                        }
-                      }
-                    }
-                  ]
-                },
-                "except": {
-                  "as": "e",
-                  "steps": [
-                    {
-                      "knownErrors": {
-                        "switch": [
-                          {
-                            "condition": "${not(\"HttpError\" in e.tags)}",
-                            "return": "${\"Connection problem with userID: \" + string(uid)}"
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "unhandledErrors": {
-                        "raise": "${e}"
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ]
+      "check_condition": {
+        "switch": [
+          {
+            "condition": "${len(array) > i}",
+            "next": "iterate"
+          }
+        ],
+        "next": "exit_loop"
+      }
+    },
+    {
+      "iterate": {
+        "assign": [
+          {
+            "result": "${result + array[i]}"
+          },
+          {
+            "i": "${i+1}"
+          }
+        ],
+        "next": "check_condition"
+      }
+    },
+    {
+      "exit_loop": {
+        "return": {
+          "concat_result": "${result}"
         }
       }
     }

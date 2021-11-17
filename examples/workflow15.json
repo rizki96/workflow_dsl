@@ -1,32 +1,67 @@
-{
-    "main": {
-      "steps": [
-        {
-          "first": {
-            "call": "hello",
-            "args": {
-              "input": "Kristof"
-            },
-            "result": "some_output"
-          }
+[
+    {
+      "getUserIDs": {
+        "call": "http.get",
+        "args": {
+          "url": "http://localhost:1234/getUserIDs"
         },
-        {
-          "second": {
-            "return": "${some_output}"
-          }
-        }
-      ]
+        "result": "userIds"
+      }
     },
-    "hello": {
-      "params": [
-        "input"
-      ],
-      "steps": [
-        {
-          "first": {
-            "return": "${\"Hello \"+input}"
-          }
+    {
+      "saveUserInfo": {
+        "for": {
+          "value": "uid",
+          "in": "${userIds}",
+          "steps": [
+            {
+              "tryStep": {
+                "try": {
+                  "steps": [
+                    {
+                      "get": {
+                        "call": "http.get!",
+                        "args": {
+                          "url": "${\"http://localhost:1234/getUserInfo?userId=\" + string(uid)}"
+                        },
+                        "result": "userInfo"
+                      }
+                    },
+                    {
+                      "post": {
+                        "call": "http.post!",
+                        "args": {
+                          "url": "${\"http://localhost:1234/saveUserInfo?userId=\" + string(uid)}",
+                          "body": "${userInfo}"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "except": {
+                  "as": "e",
+                  "steps": [
+                    {
+                      "knownErrors": {
+                        "switch": [
+                          {
+                            "condition": "${not(\"HttpError\" in e.tags)}",
+                            "return": "${\"Connection problem with userID: \" + string(uid)}"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "unhandledErrors": {
+                        "raise": "${e}"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
         }
-      ]
+      }
     }
-}
+]

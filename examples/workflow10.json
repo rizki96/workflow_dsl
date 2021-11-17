@@ -1,52 +1,53 @@
 [
     {
-      "define": {
-        "assign": [
-          {
-            "array": [
-              "foo",
-              "ba",
-              "r"
-            ]
-          },
-          {
-            "result": ""
-          },
-          {
-            "i": 0
-          }
-        ]
+      "first_step": {
+        "call": "http.get",
+        "args": {
+          "url": "http://localhost:1234/callAFirstStep"
+        },
+        "result": "first_result"
       }
     },
     {
-      "check_condition": {
+      "where_to_jump": {
         "switch": [
           {
-            "condition": "${len(array) > i}",
-            "next": "iterate"
-          }
-        ],
-        "next": "exit_loop"
-      }
-    },
-    {
-      "iterate": {
-        "assign": [
-          {
-            "result": "${result + array[i]}"
+            "condition": "${first_result.body.SomeField < 10}",
+            "next": "small"
           },
           {
-            "i": "${i+1}"
+            "condition": "${first_result.body.SomeField < 100}",
+            "next": "medium"
           }
         ],
-        "next": "check_condition"
+        "next": "large"
       }
     },
     {
-      "exit_loop": {
-        "return": {
-          "concat_result": "${result}"
-        }
+      "small": {
+        "call": "http.get",
+        "args": {
+          "url": "http://localhost:1234/SmallFunc"
+        },
+        "next": "end"
+      }
+    },
+    {
+      "medium": {
+        "call": "http.get",
+        "args": {
+          "url": "http://localhost:1234/MediumFunc"
+        },
+        "next": "end"
+      }
+    },
+    {
+      "large": {
+        "call": "http.get",
+        "args": {
+          "url": "http://localhost:1234/LargeFunc"
+        },
+        "next": "end"
       }
     }
 ]
