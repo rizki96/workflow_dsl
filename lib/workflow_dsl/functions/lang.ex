@@ -90,6 +90,22 @@ defmodule WorkflowDsl.Lang do
   def eval(session, {:neg_vars, [val]}) do
     -eval(session, val)
   end
+  def eval(session, {:list, [func, val]}) do
+    values = eval(session, val)
+    eval(session, {String.to_atom(func), [values]})
+  end
+  def eval(session, {:len, [_func, val]}) do
+    values = eval(session, val)
+    Kernel.length(values)
+  end
+  def eval(_session, {:keys, [vals]}) do
+    Enum.map(vals, fn it ->
+      cond do
+        is_list(it) -> Enum.at(it, 0)
+        true -> nil
+      end
+    end) |> Enum.filter(fn it -> it != nil end)
+  end
 
   # implement eval for cond
   def eval(session, {:eq, [val0, val1]}) do

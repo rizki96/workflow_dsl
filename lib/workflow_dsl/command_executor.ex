@@ -15,35 +15,10 @@ defmodule WorkflowDsl.CommandExecutor do
     #Logger.log(:debug, "input: #{inspect input}, init_val: #{inspect init_val}, steps: #{inspect steps}, index: #{inspect index}")
     {:ok, result, _, _, _, _} = LoopExprParser.parse_for_in(input)
     Enum.map(result, fn res ->
-      case res do
-        {:list, [func, {:vars, varnames}]} ->
-          varname = Enum.join(varnames)
-          localvar = Storages.get_var_by(%{"session" => session, "name" => varname})
-          if localvar != nil do
-            apply(__MODULE__, String.to_atom(func), [:erlang.binary_to_term(localvar.value)])
-          else
-            []
-          end
-        {:vars, varnames} ->
-          varname = Enum.join(varnames)
-          localvar = Storages.get_var_by(%{"session" => session, "name" => varname})
-          :erlang.binary_to_term(localvar.value)
-      end
+      Lang.eval(session, res)
       |> Enum.with_index()
       |> Enum.map(fn {it, idx} ->
-        case Storages.get_var_by(%{"session" => session, "name" => index}) do
-          nil -> Storages.create_var(%{"session" => session, "name" => index, "value" => :erlang.term_to_binary(idx)})
-          var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(idx)})
-        end
-
-        case Storages.get_var_by(%{"session" => session, "name" => init_val}) do
-          nil -> Storages.create_var(%{"session" => session, "name" => init_val, "value" => :erlang.term_to_binary(it)})
-          var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(it)})
-        end
-
-        steps
-        |> JsonExprParser.convert2tuple()
-        |> Interpreter.process(session)
+        keep_value_process_steps(session, init_val, index, idx, it, steps)
       end)
     end)
   end
@@ -71,22 +46,25 @@ defmodule WorkflowDsl.CommandExecutor do
 
     Enum.with_index(range)
     |> Enum.each(fn {it, idx} ->
-      number =
-        if precision > 0, do: Float.round(it * frac, precision), else: it * frac
-      case Storages.get_var_by(%{"session" => session, "name" => index}) do
-        nil -> Storages.create_var(%{"session" => session, "name" => index, "value" => :erlang.term_to_binary(idx)})
-        var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(idx)})
-      end
-
-      case Storages.get_var_by(%{"session" => session, "name" => init_val}) do
-        nil -> Storages.create_var(%{"session" => session, "name" => init_val, "value" => :erlang.term_to_binary(number)})
-        var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(number)})
-      end
-
-      steps
-      |> JsonExprParser.convert2tuple()
-      |> Interpreter.process(session)
+      it = if precision > 0, do: Float.round(it * frac, precision), else: it * frac
+      keep_value_process_steps(session, init_val, index, idx, it, steps)
     end)
+  end
+
+  defp keep_value_process_steps(session, initval, idxname, idxval, number, steps) do
+    case Storages.get_var_by(%{"session" => session, "name" => idxname}) do
+      nil -> Storages.create_var(%{"session" => session, "name" => idxname, "value" => :erlang.term_to_binary(idxval)})
+      var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(idxval)})
+    end
+
+    case Storages.get_var_by(%{"session" => session, "name" => initval}) do
+      nil -> Storages.create_var(%{"session" => session, "name" => initval, "value" => :erlang.term_to_binary(number)})
+      var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(number)})
+    end
+
+    steps
+    |> JsonExprParser.convert2tuple()
+    |> Interpreter.process(session)
   end
 
   defp create_range(reach_min, frac_min, reach_max, frac_max) do
@@ -231,12 +209,6 @@ defmodule WorkflowDsl.CommandExecutor do
       val
     end
   end
-
-  #def execute_steps(session, steps) do
-  #  steps
-  #  |> JsonExprParser.convert2tuple()
-  #  |> Interpreter.process(session)
-  #end
 
   def try_execute_function(session, uid, module, name, args) do
     function =
