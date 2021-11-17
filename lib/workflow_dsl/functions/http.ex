@@ -5,40 +5,101 @@ defmodule WorkflowDsl.Http do
   def get(params) do
     Logger.log(:debug, "execute :get, params: #{inspect params}")
 
-    case params do
-      [["url", url]] ->
-        Req.request(:get, url)
+    parameters = Enum.map(params, fn [k,v] ->
+      {k, v}
+    end)
+    |> Enum.into(%{})
 
-      [["url", url], ["headers", headers]] ->
-        Req.request(:get, url, headers: headers)
+    request(:get, parameters)
+  end
 
-      _ -> nil
+  def post(params) do
+    Logger.log(:debug, "execute :post, params: #{inspect params}")
+
+    parameters = Enum.map(params, fn [k,v] ->
+      {k, v}
+    end)
+    |> Enum.into(%{})
+
+    request(:post, parameters)
+  end
+
+  def put(params) do
+    Logger.log(:debug, "execute :update, params: #{inspect params}")
+
+    parameters = Enum.map(params, fn [k,v] ->
+      {k, v}
+    end)
+    |> Enum.into(%{})
+
+    request(:put, parameters)
+  end
+
+  #def delete(params) do
+  #
+  #end
+
+  defp request(:get, %{"url" => url, "headers" => headers} = _params) do
+    Req.request(:get, url, headers: headers)
+  end
+  defp request(:get, %{"url" => url} = _params) do
+    Req.request(:get, url)
+  end
+  defp request(:get, params) do
+    Logger.log(:debug, "get unknown params: #{inspect params}")
+    cond do
+      not Map.has_key?(params, "url") -> {:missingparam, [:url], params}
+      true -> {:unknownparam, [], params}
     end
   end
 
-  def post(params, body) do
-    Logger.log(:debug, "execute :post, params: #{inspect params} #{inspect body}")
-
-    case params do
-      [["url", url]] ->
-        Req.request(:post, url, body: body)
-
-      [["url", url], ["headers", headers]] ->
-        Req.request(:post, url, headers: headers, body: body)
-
-      _ -> nil
+  defp request(:post, %{"url" => url, "headers" => headers, "body" => body} = _params) do
+    body =
+    cond do
+      is_tuple(body) -> Jason.encode!(Tuple.to_list(body))
+      true -> Jason.encode!(body)
+    end
+    Req.request(:post, url, headers: headers, body: body)
+  end
+  defp request(:post, %{"url" => url, "body" => body} = _params) do
+    body =
+      cond do
+        is_tuple(body) -> Jason.encode!(Tuple.to_list(body))
+        true -> Jason.encode!(body)
+      end
+    Req.request(:post, url, body: body)
+  end
+  defp request(:post, params) do
+    Logger.log(:debug, "post unknown params: #{inspect params}")
+    cond do
+      not Map.has_key?(params, "body") -> {:missingparam, [:body], params}
+      not Map.has_key?(params, "url") -> {:missingparam, [:url], params}
+      true -> {:unknownparam, [], params}
     end
   end
 
-  #def update(url, headers, body) do
-  #
-  #end
-
-  #def delete(url, headers) do
-  #
-  #end
-
-  #def request() do
-  #
-  #end
+  defp request(:put, %{"url" => url, "headers" => headers, "body" => body} = _params) do
+    body =
+      cond do
+        is_tuple(body) -> Jason.encode!(Tuple.to_list(body))
+        true -> Jason.encode!(body)
+      end
+    Req.request(:put, url, headers: headers, body: body)
+  end
+  defp request(:put, %{"url" => url, "body" => body} = _params) do
+    body =
+      cond do
+        is_tuple(body) -> Jason.encode!(Tuple.to_list(body))
+        true -> Jason.encode!(body)
+      end
+    Req.request(:put, url, body: body)
+  end
+  defp request(:put, params) do
+    Logger.log(:debug, "put unknown params: #{inspect params}")
+    cond do
+      not Map.has_key?(params, "body") -> {:missingparam, [:body], params}
+      not Map.has_key?(params, "url") -> {:missingparam, [:url], params}
+      true -> {:unknownparam, [], params}
+    end
+  end
 end

@@ -51,7 +51,7 @@ defmodule WorkflowDsl.CommandExecutor do
   def execute_for_range(session, init_val, input, steps, index \\ "index") do
     [min, max] = input
     #Logger.log(:debug, "input min: #{inspect min}, input max: #{inspect max}, init_val: #{inspect init_val}, steps: #{inspect steps}, index: #{inspect index}")
-    {range, frac} =
+    {range, frac, precision} =
     cond do
       is_binary(min) and is_binary(max) ->
         {:ok, [res_min], _, _, _, _} = MathExprParser.parse_math(min)
@@ -67,10 +67,12 @@ defmodule WorkflowDsl.CommandExecutor do
 
         create_range(reach_min, frac_min, reach_max, frac_max)
     end
+    #Logger.log(:debug, "create_range: #{inspect range} #{inspect frac}")
 
     Enum.with_index(range)
     |> Enum.each(fn {it, idx} ->
-      number = it * frac
+      number =
+        if precision > 0, do: Float.round(it * frac, precision), else: it * frac
       case Storages.get_var_by(%{"session" => session, "name" => index}) do
         nil -> Storages.create_var(%{"session" => session, "name" => index, "value" => :erlang.term_to_binary(idx)})
         var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(idx)})
@@ -91,7 +93,7 @@ defmodule WorkflowDsl.CommandExecutor do
     if frac_min > 0 or frac_max > 0 do
       create_range_frac(reach_min, frac_min, reach_max, frac_max)
     else
-      {Range.new(reach_min, reach_max), 1}
+      {Range.new(reach_min, reach_max), 1, 0}
     end
   end
 
@@ -105,9 +107,10 @@ defmodule WorkflowDsl.CommandExecutor do
         true ->
           {reach_min, reach_max}
       end
-    frac = if frac_min == 0.0 and frac_max == 0.0, do: 1.0, else: Float.pow(0.1, max(frac_min, frac_max))
+    precision = trunc(max(frac_min, frac_max))
+    frac = if frac_min == 0.0 and frac_max == 0.0, do: 1, else: Float.round(Float.pow(0.1, precision), precision)
 
-    {Range.new(trunc(reach_min), trunc(reach_max)), frac}
+    {Range.new(trunc(reach_min), trunc(reach_max)), frac, precision}
   end
 
   defp reach_to_integer(orig_val, frac \\ 0) do
@@ -243,18 +246,7 @@ defmodule WorkflowDsl.CommandExecutor do
           #Logger.log(:debug, "Create Module: #{inspect module} #{inspect name}")
           Storages.create_function(%{"session" => session, "uid" => uid, "module" => :erlang.term_to_binary(module), "name" => :erlang.term_to_binary(name)})
         not is_nil(args) ->
-          args = Enum.map(args, fn arg ->
-            case arg do
-              [k, val] ->
-                if String.starts_with?(val, "${") and String.ends_with?(val, "}") do
-                  {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
-                  Lang.eval(session, res)
-                else
-                  [k, val]
-                end
-              other -> other
-            end
-          end)
+          args = eval_args(session, args)
           #Logger.log(:debug, "Create Args: #{inspect args}")
           Storages.create_function(%{"session" => session, "uid" => uid, "args" => :erlang.term_to_binary(args)})
         true -> {:error, nil}
@@ -264,19 +256,11 @@ defmodule WorkflowDsl.CommandExecutor do
           #Logger.log(:debug, "Update Module: #{inspect module} #{inspect name}")
           Storages.update_function(func, %{"name" => :erlang.term_to_binary(name), "module" => :erlang.term_to_binary(module)})
         not is_nil(args) and is_nil(func.args) ->
-          args = Enum.map(args, fn arg ->
-            case arg do
-              [k, val] ->
-                if is_binary(val) and String.starts_with?(val, "${") do
-                  {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
-                  [k, Lang.eval(session, res)]
-                else
-                  [k, val]
-                end
-              other -> other
-            end
-          end)
+          args = eval_args(session, args)
           #Logger.log(:debug, "Update Args: #{inspect args}")
+          Storages.update_function(func, %{"args" => :erlang.term_to_binary(args)})
+        not is_nil(args) ->
+          args = :erlang.binary_to_term(func.args) ++ eval_args(session, args)
           Storages.update_function(func, %{"args" => :erlang.term_to_binary(args)})
         true ->
           if not is_nil(func.executed_at), do: {:error, func}, else: {:ok, func}
@@ -295,6 +279,11 @@ defmodule WorkflowDsl.CommandExecutor do
                 and oldest.uid == func.uid do
                 result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
                 Storages.update_function(func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
+                is_executed = case result do
+                  {:ok, _} -> true
+                  {:error, _} -> true
+                  _ -> false
+                end
 
                 case Storages.get_next_exec_by(%{"session" => session, "uid" => oldest.uid}) do
                   nil ->
@@ -303,14 +292,14 @@ defmodule WorkflowDsl.CommandExecutor do
                     Storages.create_next_exec(%{
                       "session" => session,
                       "uid" => func.uid,
-                      "is_executed" => true,
+                      "is_executed" => is_executed,
                       "inserted_at" => timestamp,
                       "updated_at" => timestamp})
                   next ->
                     timestamp = :os.system_time(:microsecond)
                     #Logger.log(:debug, "update #{inspect next.uid}")
                     Storages.update_next_exec(next, %{
-                      "is_executed" => true,
+                      "is_executed" => is_executed,
                       "updated_at" => timestamp})
                 end
               end
@@ -321,12 +310,17 @@ defmodule WorkflowDsl.CommandExecutor do
             result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
             Storages.update_function(func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
             timestamp = :os.system_time(:microsecond)
+            is_executed = case result do
+              {:ok, _} -> true
+              {:error, _} -> true
+              _ -> false
+            end
 
             #Logger.log(:debug, "create #{inspect func.uid}")
             Storages.create_next_exec(%{
               "session" => session,
               "uid" => func.uid,
-              "is_executed" => true,
+              "is_executed" => is_executed,
               "inserted_at" => timestamp,
               "updated_at" => timestamp})
           end
@@ -335,6 +329,21 @@ defmodule WorkflowDsl.CommandExecutor do
         #Logger.log(:debug, "error: #{inspect func}")
         nil
     end
+  end
+
+  defp eval_args(session, args) do
+    Enum.map(args, fn arg ->
+      case arg do
+        [k, val] ->
+          if is_binary(val) and String.starts_with?(val, "${") do
+            {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
+            [k, Lang.eval(session, res)]
+          else
+            [k, val]
+          end
+        other -> other
+      end
+    end)
   end
 
   def execute_next(session, uid, params) do
@@ -435,6 +444,53 @@ defmodule WorkflowDsl.CommandExecutor do
     {:ok, [result], _, _, _, _} = CondExprParser.parse_cond(params)
     #Logger.log(:debug, "#{inspect result}")
     Lang.eval(session, result)
+  end
+
+  def execute_body(session, uid, params) do
+    {:ok, execute_func} =
+    case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
+      nil ->
+        args = eval_args(session, [["body", params]])
+        Storages.create_function(%{"session" => session, "uid" => uid, "args" => :erlang.term_to_binary(args)})
+      func ->
+        cond do
+          not is_nil(func.args) ->
+            args = :erlang.binary_to_term(func.args) ++ eval_args(session, [["body", params]])
+            Storages.update_function(func, %{"args" => :erlang.term_to_binary(args)})
+          true ->
+            args = eval_args(session, [["body", params]])
+            Storages.update_function(func, %{"args" => :erlang.term_to_binary(args)})
+        end
+    end
+
+    # check in result if params is missing the body
+    result = if not is_nil(execute_func.result),
+          do: :erlang.binary_to_term(execute_func.result),
+          else: nil
+    case result do
+      {:missingparam, [:body], _params} ->
+        result = apply(:erlang.binary_to_term(execute_func.module), :erlang.binary_to_term(execute_func.name), [:erlang.binary_to_term(execute_func.args)])
+        Storages.update_function(execute_func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
+
+        case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
+          nil ->
+            timestamp = :os.system_time(:microsecond)
+            #Logger.log(:debug, "create #{inspect func.uid}")
+            Storages.create_next_exec(%{
+              "session" => session,
+              "uid" => execute_func.uid,
+              "is_executed" => true,
+              "inserted_at" => timestamp,
+              "updated_at" => timestamp})
+          next ->
+            timestamp = :os.system_time(:microsecond)
+            #Logger.log(:debug, "update #{inspect next.uid}")
+            Storages.update_next_exec(next, %{
+              "is_executed" => true,
+              "updated_at" => timestamp})
+        end
+      _ -> nil
+    end
   end
 
   def keys(map) do

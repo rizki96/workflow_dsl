@@ -68,6 +68,7 @@ defmodule WorkflowDsl.Interpreter do
   defp to_keyword(["switch", params]), do: {:switch, params}
   defp to_keyword(["steps", params]), do: {:steps, params}
   defp to_keyword(["params", params]), do: {:params, params}
+  defp to_keyword(["body", params]), do: {:body, params}
   defp to_keyword([func, params]), do: {:unknown, [func, params]}
 
   defp command(session, uid, {:assign, params}) do
@@ -162,6 +163,7 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp command(session, uid, {:body, params}) do
+    CommandExecutor.execute_body(session, uid, params)
     Logger.log(:debug, "body: #{inspect params}, session: #{inspect session}, uid: #{uid}")
   end
 

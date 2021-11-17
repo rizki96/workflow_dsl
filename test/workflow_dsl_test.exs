@@ -17,6 +17,13 @@ defmodule WorkflowDslTest do
 
   #@tag :skip
   test "workflows object translate to command", %{bypass: bypass} do
+    Bypass.expect(bypass, "POST", "/storeTemp", fn conn ->
+      params = Plug.Conn.fetch_query_params(conn)
+      temp = String.to_float(params.query_params["temp"])
+      isNormal = if temp >= -14.2 and temp <= -14.0, do: true, else: false
+      Logger.log(:debug, "#{inspect temp} #{inspect isNormal}")
+      Plug.Conn.resp(conn, 200, "#{:ok}")
+    end)
     Bypass.expect(bypass, "GET", "/isBodyTempNormal", fn conn ->
       params = Plug.Conn.fetch_query_params(conn)
       temp = String.to_float(params.query_params["temp"])
@@ -24,12 +31,12 @@ defmodule WorkflowDslTest do
       Logger.log(:debug, "#{inspect temp} #{inspect isNormal}")
       Plug.Conn.resp(conn, 200, "#{isNormal}")
     end)
-    #Bypass.expect(bypass, fn conn ->
-    #  # We don't care about `request_path` or `method` for this test.
-    #  Plug.Conn.resp(conn, 200, "")
-    #end)
+    Bypass.expect(bypass, fn conn ->
+      # We don't care about `request_path` or `method` for this test.
+      Plug.Conn.resp(conn, 200, "")
+    end)
 
-    for n <- 8..8 do
+    for n <- 1..8 do
       rand = Randomizer.randomizer(8)
       output = "./examples/workflow#{n}.json"
         |> WorkflowDsl.JsonExprParser.process(:file)
