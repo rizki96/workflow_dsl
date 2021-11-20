@@ -18,15 +18,21 @@ defmodule WorkflowDsl.Interpreter do
 
   end
 
+  def exec_command(session, uid, scripts) do
+    Enum.map(scripts, fn p ->
+      command(session, uid, p)
+      p
+    end)
+  end
+
   defp execute(code, session) do
     # clear state
     Enum.map(code, fn {k, _} ->
       clear(session, k)
     end)
     Enum.map(code, fn {k, v} ->
-      Enum.map(v, fn p ->
-        command(session, k, p)
-      end)
+      record(session, k, v)
+      exec_command(session, k, v)
     end)
   end
 
@@ -40,6 +46,23 @@ defmodule WorkflowDsl.Interpreter do
     case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
       nil -> nil
       next_exec -> Storages.delete_next_exec(next_exec)
+    end
+  end
+
+  defp record(session, uid, scripts) do
+    Logger.log(:debug, "record session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
+    case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
+      nil ->
+        Storages.create_next_exec(%{
+          "session" => session,
+          "uid" => uid,
+          "is_executed" => false,
+          "triggered_script" => :erlang.term_to_binary(scripts),
+        })
+      next_exec ->
+        Storages.update_next_exec(next_exec, %{
+          "triggered_script" => :erlang.term_to_binary(scripts)
+        })
     end
   end
 
@@ -117,12 +140,12 @@ defmodule WorkflowDsl.Interpreter do
   defp command(session, uid, {:call, params}) do
     modfunc = String.split(String.capitalize(params), ".")
     module_name = String.to_existing_atom("#{@default_module_prefix}.#{Enum.at(modfunc,0)}")
-    CommandExecutor.try_execute_function(session, uid, module_name, String.to_atom(Enum.at(modfunc, 1)), nil)
+    CommandExecutor.maybe_execute_function(session, uid, module_name, String.to_atom(Enum.at(modfunc, 1)), nil)
     Logger.log(:debug, "call: #{inspect params}, session: #{inspect session}, uid: #{uid}")
   end
 
   defp command(session, uid, {:args, params}) do
-    CommandExecutor.try_execute_function(session, uid, nil, nil, params)
+    CommandExecutor.maybe_execute_function(session, uid, nil, nil, params)
     Logger.log(:debug, "args: #{inspect params}, session: #{inspect session}, uid: #{uid}")
   end
 

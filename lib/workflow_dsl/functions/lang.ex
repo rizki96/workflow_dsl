@@ -3,7 +3,7 @@ defmodule WorkflowDsl.Lang do
   alias WorkflowDsl.Storages
   alias WorkflowDsl.ListMapExprParser
 
-  #require Logger
+  require Logger
 
   # eval for math
   def eval(session, {:mul, [val0, val1]}), do: eval(session, val0) * eval(session, val1)
@@ -37,7 +37,11 @@ defmodule WorkflowDsl.Lang do
                   k = if not Map.has_key?(map, eval(session, it)), do: String.to_atom(eval(session, it)), else: eval(session, it)
                   map[k]
                 _ ->
-                  acc[eval(session, it)]
+                  k = eval(session, it)
+                  cond do
+                    is_integer(k) -> Enum.at(acc, k)
+                    true -> acc[k]
+                  end
               end
             is_map(acc) ->
               #Logger.log(:debug, "type: map")

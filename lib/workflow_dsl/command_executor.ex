@@ -109,6 +109,7 @@ defmodule WorkflowDsl.CommandExecutor do
     result =
     if is_binary(val) and String.starts_with?(val, "${") do
       {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
+      #Logger.log(:debug, "#{inspect res}")
       Lang.eval(session, res)
     else
       val
@@ -210,7 +211,8 @@ defmodule WorkflowDsl.CommandExecutor do
     end
   end
 
-  def try_execute_function(session, uid, module, name, args) do
+  def maybe_execute_function(session, uid, module, name, args) do
+    # TODO: refactor this
     function =
     case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
       nil -> cond do
@@ -239,14 +241,13 @@ defmodule WorkflowDsl.CommandExecutor do
       end
     end
 
-    # TRACE: error after clear state
     case function do
       {:ok, func} ->
         if Storages.count_next_execs(%{"session" => session}) > 0 do
           case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
             nil -> nil
             oldest ->
-              #Logger.log(:debug, "try_execute_function: #{inspect oldest} #{inspect func}")
+              #Logger.log(:debug, "maybe_execute_function: #{inspect oldest} #{inspect func}")
               if not is_nil(func.name) and not is_nil(func.args)
                 and oldest.uid == func.uid do
                 result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
@@ -257,17 +258,7 @@ defmodule WorkflowDsl.CommandExecutor do
                   _ -> false
                 end
 
-                case Storages.get_next_exec_by(%{"session" => session, "uid" => oldest.uid}) do
-                  nil ->
-                    timestamp = :os.system_time(:microsecond)
-                    #Logger.log(:debug, "create #{inspect func.uid}")
-                    Storages.create_next_exec(%{
-                      "session" => session,
-                      "uid" => func.uid,
-                      "is_executed" => is_executed,
-                      "inserted_at" => timestamp,
-                      "updated_at" => timestamp})
-                  next ->
+                if (next = Storages.get_next_exec_by(%{"session" => session, "uid" => oldest.uid})) != nil do
                     timestamp = :os.system_time(:microsecond)
                     #Logger.log(:debug, "update #{inspect next.uid}")
                     Storages.update_next_exec(next, %{
@@ -319,62 +310,40 @@ defmodule WorkflowDsl.CommandExecutor do
   end
 
   def execute_next(session, uid, params) do
-    case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
-      nil ->
-        timestamp = :os.system_time(:microsecond)
-        func = Storages.get_function_by(%{"session" => session, "uid" => uid})
-        is_executed = if not is_nil(func), do: not is_nil(func.executed_at), else: false
-        Storages.create_next_exec(%{"session" => session, "uid" => uid, "next_uid" => params, "is_executed" => is_executed,
-          "inserted_at" => timestamp, "updated_at" => timestamp})
-        if params != "end" and params != "break" do
-          func = Storages.get_function_by(%{"session" => session, "uid" => params})
-          is_executed = if not is_nil(func), do: not is_nil(func.executed_at), else: false
-          case Storages.get_next_exec_by(%{"session" => session, "uid" => params}) do
-            nil ->
-              #Logger.log(:debug, "create #{inspect params}")
-              Storages.create_next_exec(%{"session" => session, "uid" => params, "is_executed" => is_executed,
-              "inserted_at" => timestamp, "updated_at" => timestamp})
-            next_exec ->
-              #Logger.log(:debug, "update #{inspect params}")
-              Storages.update_next_exec(next_exec, %{"is_executed" => is_executed,
-              "updated_at" => timestamp})
-          end
-        end
-      next ->
-        timestamp = :os.system_time(:microsecond)
-        func = Storages.get_function_by(%{"session" => session, "uid" => uid})
-        is_executed = if not is_nil(func), do: not is_nil(func.executed_at), else: false
-        Storages.update_next_exec(next, %{"next_uid" => params, "is_executed" => is_executed,
-          "updated_at" => timestamp})
-        if params != "end" and params != "break" do
-          func = Storages.get_function_by(%{"session" => session, "uid" => params})
-          is_executed = if not is_nil(func), do: not is_nil(func.executed_at), else: false
-          case Storages.get_next_exec_by(%{"session" => session, "uid" => params}) do
-            nil ->
-              #Logger.log(:debug, "create #{inspect params}")
-              Storages.create_next_exec(%{"session" => session, "uid" => params, "is_executed" => is_executed,
-              "inserted_at" => timestamp, "updated_at" => timestamp})
-            next_exec ->
-              #Logger.log(:debug, "update #{inspect params}")
-              Storages.update_next_exec(next_exec, %{"is_executed" => is_executed,
-              "updated_at" => timestamp})
-          end
-        end
+    if (exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
+      Storages.update_next_exec(exec, %{"next_uid" => params})
     end
 
     case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
       nil -> nil
       oldest ->
         #Logger.log(:debug, "execute_next: oldest Next_exec exists: #{inspect oldest}")
-        try_execute_function(session, oldest.uid, nil, nil, nil)
+        maybe_execute_function(session, oldest.uid, nil, nil, nil)
+        maybe_execute_next(session, oldest.uid)
+
         if not is_nil(oldest.next_uid) do
           case Storages.get_next_exec_by(%{"session" => session, "uid" => oldest.next_uid}) do
             nil -> nil
             oldest_next ->
               #Logger.log(:debug, "execute_next: oldest_next Next_exec exists: #{inspect oldest_next}")
-              if not is_nil(oldest_next.next_uid), do:
+              if not is_nil(oldest_next.next_uid) do
+                Storages.update_next_exec(oldest_next, %{"is_executed" => false})
                 execute_next(session, oldest_next.uid, oldest_next.next_uid)
+              end
           end
+        end
+    end
+  end
+
+  defp maybe_execute_next(session, uid) do
+    #Logger.log(:debug, "maybe_execute_next, session: #{session}, uid: #{uid}")
+    case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
+      nil -> nil
+      next_exec ->
+        #Logger.log(:debug, "maybe_execute_next, next_exec: #{inspect next_exec}")
+        if next_exec.is_executed == false do
+          Storages.update_next_exec(next_exec, %{"is_executed" => true})
+          Interpreter.exec_command(session, uid, :erlang.binary_to_term(next_exec.triggered_script))
         end
     end
   end
@@ -399,9 +368,7 @@ defmodule WorkflowDsl.CommandExecutor do
   def execute_switch(session, uid, params) do
     case params do
       {:next, true, nxt} ->
-        timestamp = :os.system_time(:microsecond)
-        Storages.create_next_exec(%{"session" => session, "uid" => nxt, "is_executed" => false,
-        "inserted_at" => timestamp, "updated_at" => timestamp})
+        execute_next(session, nxt, nil)
       {:result, true, rst} ->
         execute_result(session, uid, rst)
       {:steps, true, stp} ->
