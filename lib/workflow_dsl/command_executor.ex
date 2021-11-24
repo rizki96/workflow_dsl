@@ -211,127 +211,55 @@ defmodule WorkflowDsl.CommandExecutor do
     end
   end
 
-  def maybe_execute_function(session, uid, module, name, args) do
-    # TODO: refactor this
-    function =
-    case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
-      nil -> cond do
-        not is_nil(name) ->
-          #Logger.log(:debug, "Create Module: #{inspect module} #{inspect name}")
-          Storages.create_function(%{"session" => session, "uid" => uid, "module" => :erlang.term_to_binary(module), "name" => :erlang.term_to_binary(name)})
-        not is_nil(args) ->
-          args = eval_args(session, args)
-          #Logger.log(:debug, "Create Args: #{inspect args}")
-          Storages.create_function(%{"session" => session, "uid" => uid, "args" => :erlang.term_to_binary(args)})
-        true -> {:error, nil}
-      end
-      func -> cond do
-        not is_nil(name) and is_nil(func.name) ->
-          #Logger.log(:debug, "Update Module: #{inspect module} #{inspect name}")
-          Storages.update_function(func, %{"name" => :erlang.term_to_binary(name), "module" => :erlang.term_to_binary(module)})
-        not is_nil(args) and is_nil(func.args) ->
-          args = eval_args(session, args)
-          #Logger.log(:debug, "Update Args: #{inspect args}")
-          Storages.update_function(func, %{"args" => :erlang.term_to_binary(args)})
-        not is_nil(args) ->
-          args = :erlang.binary_to_term(func.args) ++ eval_args(session, args)
-          Storages.update_function(func, %{"args" => :erlang.term_to_binary(args)})
-        true ->
-          if not is_nil(func.executed_at), do: {:error, func}, else: {:ok, func}
-      end
-    end
-
-    case function do
-      {:ok, func} ->
-        if Storages.count_next_execs(%{"session" => session}) > 0 do
-          case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
-            nil -> nil
-            oldest ->
-              #Logger.log(:debug, "maybe_execute_function: #{inspect oldest} #{inspect func}")
-              if not is_nil(func.name) and not is_nil(func.args)
-                and oldest.uid == func.uid do
-                result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
-                Storages.update_function(func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
-                is_executed = case result do
-                  {:ok, _} -> true
-                  {:error, _} -> true
-                  _ -> false
-                end
-
-                if (next = Storages.get_next_exec_by(%{"session" => session, "uid" => oldest.uid})) != nil do
-                    timestamp = :os.system_time(:microsecond)
-                    #Logger.log(:debug, "update #{inspect next.uid}")
-                    Storages.update_next_exec(next, %{
-                      "is_executed" => is_executed,
-                      "updated_at" => timestamp})
-                end
+  def maybe_execute_function(session, uid) do
+    if func = Storages.get_function_by(%{"session" => session, "uid" => uid}) do
+      if Storages.count_next_execs(%{"session" => session}) > 0 do
+        case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
+          nil -> nil
+          oldest ->
+            #Logger.log(:debug, "maybe_execute_function: #{inspect oldest} #{inspect func}")
+            if not is_nil(func.name) and not is_nil(func.args)
+              and oldest.uid == func.uid do
+              result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
+              Storages.update_function(func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
+              is_executed = case result do
+                {:ok, _} -> true
+                {:error, _} -> true
+                _ -> false
               end
-          end
-        else
-          #Logger.log(:debug, "No next_exec")
-          if not is_nil(func.name) and not is_nil(func.args) do
-            result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
-            Storages.update_function(func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
-            timestamp = :os.system_time(:microsecond)
-            is_executed = case result do
-              {:ok, _} -> true
-              {:error, _} -> true
-              _ -> false
+
+              if (next = Storages.get_next_exec_by(%{"session" => session, "uid" => oldest.uid})) != nil do
+                  timestamp = :os.system_time(:microsecond)
+                  #Logger.log(:debug, "update #{inspect next.uid}")
+                  Storages.update_next_exec(next, %{
+                    "is_executed" => is_executed,
+                    "updated_at" => timestamp})
+              end
             end
-
-            #Logger.log(:debug, "create #{inspect func.uid}")
-            Storages.create_next_exec(%{
-              "session" => session,
-              "uid" => func.uid,
-              "is_executed" => is_executed,
-              "inserted_at" => timestamp,
-              "updated_at" => timestamp})
-          end
         end
-      {:error, _func} ->
-        #Logger.log(:debug, "error: #{inspect func}")
-        nil
-    end
-  end
-
-  defp eval_args(session, args) do
-    Enum.map(args, fn arg ->
-      case arg do
-        [k, val] ->
-          if is_binary(val) and String.starts_with?(val, "${") do
-            {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
-            [k, Lang.eval(session, res)]
-          else
-            [k, val]
-          end
-        other -> other
+      else
+        #Logger.log(:debug, "No next_exec")
+        if not is_nil(func.name) and not is_nil(func.args) do
+          result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
+          Storages.update_function(func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
+        end
       end
-    end)
+    end
   end
 
   def execute_next(session, uid, params) do
     if (exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
       Storages.update_next_exec(exec, %{"next_uid" => params})
+    else
+      Storages.create_next_exec(%{"session" => session, "uid" => uid, "next_uid" => params, "is_executed" => false})
     end
 
     case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
       nil -> nil
       oldest ->
         #Logger.log(:debug, "execute_next: oldest Next_exec exists: #{inspect oldest}")
-        maybe_execute_function(session, oldest.uid, nil, nil, nil)
+        maybe_execute_function(session, oldest.uid)
         maybe_execute_next(session, oldest.uid)
-
-        if not is_nil(oldest.next_uid) do
-          case Storages.get_next_exec_by(%{"session" => session, "uid" => oldest.next_uid}) do
-            nil -> nil
-            oldest_next ->
-              #Logger.log(:debug, "execute_next: oldest_next Next_exec exists: #{inspect oldest_next}")
-              if not is_nil(oldest_next.next_uid) do
-                Storages.update_next_exec(oldest_next, %{"is_executed" => false})
-                execute_next(session, oldest_next.uid, oldest_next.next_uid)
-              end
-          end
-        end
     end
   end
 
@@ -340,11 +268,18 @@ defmodule WorkflowDsl.CommandExecutor do
     case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
       nil -> nil
       next_exec ->
-        #Logger.log(:debug, "maybe_execute_next, next_exec: #{inspect next_exec}")
-        if next_exec.is_executed == false do
+        #Logger.log(:debug, "maybe_execute_next, next_exec: #{inspect next_exec}, is_function?: #{inspect is_function?(session, uid)}")
+        if next_exec.is_executed == false and not is_nil(next_exec.triggered_script) and not is_function?(session, uid) do
           Storages.update_next_exec(next_exec, %{"is_executed" => true})
           Interpreter.exec_command(session, uid, :erlang.binary_to_term(next_exec.triggered_script))
         end
+    end
+  end
+
+  defp is_function?(session, uid) do
+    case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
+      nil -> false
+      _ -> true
     end
   end
 
@@ -382,54 +317,9 @@ defmodule WorkflowDsl.CommandExecutor do
   def execute_condition(session, _uid, params) do
     {:ok, [result], _, _, _, _} = CondExprParser.parse_cond(params)
     #Logger.log(:debug, "#{inspect result}")
-    Lang.eval(session, result)
-  end
-
-  def execute_body(session, uid, params) do
-    {:ok, execute_func} =
-    case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
-      nil ->
-        args = eval_args(session, [["body", params]])
-        Storages.create_function(%{"session" => session, "uid" => uid, "args" => :erlang.term_to_binary(args)})
-      func ->
-        cond do
-          not is_nil(func.args) ->
-            args = :erlang.binary_to_term(func.args) ++ eval_args(session, [["body", params]])
-            Storages.update_function(func, %{"args" => :erlang.term_to_binary(args)})
-          true ->
-            args = eval_args(session, [["body", params]])
-            Storages.update_function(func, %{"args" => :erlang.term_to_binary(args)})
-        end
-    end
-
-    # check in result if params is missing the body
-    result = if not is_nil(execute_func.result),
-          do: :erlang.binary_to_term(execute_func.result),
-          else: nil
-    case result do
-      {:missingparam, [:body], _params} ->
-        result = apply(:erlang.binary_to_term(execute_func.module), :erlang.binary_to_term(execute_func.name), [:erlang.binary_to_term(execute_func.args)])
-        Storages.update_function(execute_func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
-
-        case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
-          nil ->
-            timestamp = :os.system_time(:microsecond)
-            #Logger.log(:debug, "create #{inspect func.uid}")
-            Storages.create_next_exec(%{
-              "session" => session,
-              "uid" => execute_func.uid,
-              "is_executed" => true,
-              "inserted_at" => timestamp,
-              "updated_at" => timestamp})
-          next ->
-            timestamp = :os.system_time(:microsecond)
-            #Logger.log(:debug, "update #{inspect next.uid}")
-            Storages.update_next_exec(next, %{
-              "is_executed" => true,
-              "updated_at" => timestamp})
-        end
-      _ -> nil
-    end
+    eval_res = Lang.eval(session, result)
+    #Logger.log(:debug, "#{inspect eval_res}")
+    eval_res
   end
 
   #def string(val) do
