@@ -136,7 +136,7 @@ defmodule WorkflowDsl.Storages do
 
   def get_oldest_next_exec(%{"session" => session, "is_executed" => executed}) do
     NextExec
-    |> where([ne], ne.session == ^session and ne.is_executed == ^executed)
+    |> where([ne], ne.session == ^session and ne.is_executed == ^executed and not is_nil(ne.inserted_at))
     |> Repo.all()
     |> Enum.reduce([], fn it, acc ->
       case acc do

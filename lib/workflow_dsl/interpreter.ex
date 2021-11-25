@@ -8,7 +8,7 @@ defmodule WorkflowDsl.Interpreter do
   alias WorkflowDsl.Lang
 
   @default_module_prefix "Elixir.WorkflowDsl"
-  #@halt_exec ["break", "end"]
+  @halt_exec ["break", "end"]
 
   def process(input, session) when is_list(input) do
     Enum.map(input, fn {_, code} ->
@@ -27,7 +27,7 @@ defmodule WorkflowDsl.Interpreter do
     end)
   end
 
-  defp execute(code, session) do
+  def execute(code, session) do
     # clear state
     Enum.map(code, fn {k, _} ->
       clear(session, k)
@@ -73,19 +73,41 @@ defmodule WorkflowDsl.Interpreter do
             "updated_at" => timestamp
           })
         next_exec ->
+          is_executed = if is_nil(next_exec.triggered_script), do: false, else: next_exec.is_executed
           Storages.update_next_exec(next_exec, %{
             "triggered_script" => :erlang.term_to_binary(scripts),
             "next_uid" => nextval,
+            "is_executed" => is_executed,
             "updated_at" => timestamp
           })
+      end
+
+      case Storages.get_next_exec_by(%{"session" => session, "uid" => nextval}) do
+        nil ->
+          if nextval not in @halt_exec do
+            timestamp = :os.system_time(:microsecond)
+            Storages.create_next_exec(%{
+              "session" => session,
+              "uid" => nextval,
+              "next_uid" => nil,
+              "is_executed" => false,
+              "inserted_at" => timestamp,
+              "updated_at" => timestamp
+            })
+          end
+        _ -> nil
       end
     else
       timestamp = :os.system_time(:microsecond)
       case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
         nil -> nil
         next_exec ->
+          Logger.log(:debug, "record_next update without next session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
+          is_executed = if is_nil(next_exec.triggered_script), do: false, else: next_exec.is_executed
           Storages.update_next_exec(next_exec, %{
             "triggered_script" => :erlang.term_to_binary(scripts),
+            "is_executed" => is_executed,
+            "inserted_at" => timestamp,
             "updated_at" => timestamp
           })
       end
@@ -219,7 +241,9 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp command(session, uid, {:args, params}) do
-    CommandExecutor.maybe_execute_function(session, uid)
+    if (func = Storages.get_function_by(%{"session" => session, "uid" => uid})) != nil do
+      if is_nil(func.executed_at), do: CommandExecutor.maybe_execute_function(session, uid)
+    end
     Logger.log(:debug, "args: #{inspect params}, session: #{inspect session}, uid: #{uid}")
   end
 
@@ -251,6 +275,7 @@ defmodule WorkflowDsl.Interpreter do
       end
     end)
     |> Enum.filter(fn {_, cnd, _} -> cnd == true end)
+    #Logger.log(:debug, "#{inspect result}")
 
     case CommandExecutor.execute_switch(session, uid, Enum.at(result,0)) do
       nil -> nil
