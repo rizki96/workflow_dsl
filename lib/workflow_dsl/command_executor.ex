@@ -227,6 +227,8 @@ defmodule WorkflowDsl.CommandExecutor do
       case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
         nil -> nil
         oldest ->
+          #Logger.log(:debug, "execute_return, session: #{inspect session}, uid: #{inspect uid} #{inspect oldest}")
+          #Logger.log(:debug, "execute_return, before: #{inspect Storages.list_next_execs(%{"session" => session})}")
           if oldest.uid == uid do
             timestamp = :os.system_time(:microsecond)
             # execute_return will mark all uid as executed, once it is found the match
@@ -236,6 +238,7 @@ defmodule WorkflowDsl.CommandExecutor do
                 "is_executed" => true,
                 "updated_at" => timestamp})
             end)
+            #Logger.log(:debug, "execute_return, after: #{inspect Storages.list_next_execs(%{"session" => session})}")
             val
           end
       end
@@ -286,6 +289,7 @@ defmodule WorkflowDsl.CommandExecutor do
 
   def execute_next(session, uid, params) do
     if (exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
+      #Logger.log(:debug, "execute_next: next_exec #{inspect exec}, params: #{inspect params}")
       timestamp = :os.system_time(:microsecond)
       inserted_at = if is_nil(exec.inserted_at), do: timestamp, else: exec.inserted_at
 
@@ -302,7 +306,7 @@ defmodule WorkflowDsl.CommandExecutor do
         maybe_execute_function(session, params)
         maybe_execute_next(session, params)
       oldest ->
-        #Logger.log(:debug, "execute_next: oldest next_exec exists: #{inspect oldest.uid}, params: #{inspect params}")
+        #Logger.log(:debug, "execute_next: oldest next_exec exists: #{inspect oldest}, params: #{inspect params}")
         uid = if params in @halt_exec or is_nil(oldest.triggered_script), do: params, else: oldest.uid
         maybe_execute_function(session, uid)
         maybe_execute_next(session, uid)
@@ -310,6 +314,8 @@ defmodule WorkflowDsl.CommandExecutor do
   end
 
   defp maybe_execute_next(session, uid) do
+    #Logger.log(:debug, "maybe_execute_next, session: #{inspect session}, uid: #{inspect uid}")
+    #Logger.log(:debug, "maybe_execute_next, #{inspect Storages.list_next_execs()}")
     if Storages.get_function_by(%{"session" => session, "uid" => uid}) == nil do
       case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
         nil -> nil
@@ -322,6 +328,8 @@ defmodule WorkflowDsl.CommandExecutor do
               if (next = Storages.get_next_exec_by(%{"session" => session, "uid" => next_exec.next_uid})) != nil do
                 if not is_nil(next.triggered_script) do
                   #Logger.log(:debug, "maybe_execute_next, next: #{inspect :erlang.binary_to_term(next.triggered_script)}")
+                  timestamp = :os.system_time(:microsecond)
+                  Storages.update_next_exec(next, %{"is_executed" => true, "updated_at" => timestamp})
                   Interpreter.exec_command(session, next.uid, :erlang.binary_to_term(next.triggered_script))
                 end
               end
@@ -356,17 +364,24 @@ defmodule WorkflowDsl.CommandExecutor do
   def execute_switch(session, uid, params) do
     case params do
       {:next, true, nxt} ->
-        #Logger.log(:debug, "execute_switch session: #{inspect session}, uid: #{inspect nxt}")
-        if nxt not in @halt_exec and is_nil(Storages.get_next_exec_by(%{"session" => session, "uid" => nxt})) do
+        #Logger.log(:debug, "execute_switch session: #{inspect session}, uid: #{inspect uid}, next: #{inspect nxt}")
+        if nxt not in @halt_exec do
           timestamp = :os.system_time(:microsecond)
-          Storages.create_next_exec(%{
-            "session" => session,
-            "uid" => nxt,
-            "next_uid" => nil,
-            "is_executed" => false,
-            "inserted_at" => timestamp,
-            "updated_at" => timestamp
-          })
+          if (next = Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false})) != nil do
+            Logger.log(:debug, "execute_switch update_next_exec session: #{inspect session}, uid: #{inspect uid}, next: #{inspect next}")
+            Storages.update_next_exec(next, %{
+              "next_uid" => nxt,
+              "updated_at" => timestamp
+            })
+            Storages.create_next_exec(%{
+              "session" => session,
+              "uid" => nxt,
+              "next_uid" => nil,
+              "is_executed" => false,
+              "inserted_at" => timestamp,
+              "updated_at" => timestamp
+            })
+          end
         end
         execute_next(session, uid, nxt)
       {:result, true, rst} ->

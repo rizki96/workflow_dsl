@@ -73,11 +73,11 @@ defmodule WorkflowDsl.Interpreter do
             "updated_at" => timestamp
           })
         next_exec ->
-          is_executed = if is_nil(next_exec.triggered_script), do: false, else: next_exec.is_executed
+          #is_executed = if is_nil(next_exec.triggered_script), do: false, else: next_exec.is_executed
           Storages.update_next_exec(next_exec, %{
             "triggered_script" => :erlang.term_to_binary(scripts),
             "next_uid" => nextval,
-            "is_executed" => is_executed,
+            #"is_executed" => is_executed,
             "updated_at" => timestamp
           })
       end
@@ -85,7 +85,8 @@ defmodule WorkflowDsl.Interpreter do
       case Storages.get_next_exec_by(%{"session" => session, "uid" => nextval}) do
         nil ->
           if nextval not in @halt_exec do
-            timestamp = :os.system_time(:microsecond)
+            # NOTE: for switch key, inserted_at will be set later
+            timestamp = if length(Keyword.take(scripts, [:switch])) > 0, do: nil, else: :os.system_time(:microsecond)
             Storages.create_next_exec(%{
               "session" => session,
               "uid" => nextval,
@@ -103,10 +104,10 @@ defmodule WorkflowDsl.Interpreter do
         nil -> nil
         next_exec ->
           Logger.log(:debug, "record_next update without next session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
-          is_executed = if is_nil(next_exec.triggered_script), do: false, else: next_exec.is_executed
+          #is_executed = if is_nil(next_exec.triggered_script), do: false, else: next_exec.is_executed
           Storages.update_next_exec(next_exec, %{
             "triggered_script" => :erlang.term_to_binary(scripts),
-            "is_executed" => is_executed,
+            #"is_executed" => is_executed,
             "inserted_at" => timestamp,
             "updated_at" => timestamp
           })
