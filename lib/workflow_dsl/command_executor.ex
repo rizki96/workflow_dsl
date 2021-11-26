@@ -368,7 +368,7 @@ defmodule WorkflowDsl.CommandExecutor do
         if nxt not in @halt_exec do
           timestamp = :os.system_time(:microsecond)
           if (next = Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false})) != nil do
-            Logger.log(:debug, "execute_switch update_next_exec session: #{inspect session}, uid: #{inspect uid}, next: #{inspect next}")
+            #Logger.log(:debug, "execute_switch update_next_exec session: #{inspect session}, uid: #{inspect uid}, next: #{inspect next}")
             Storages.update_next_exec(next, %{
               "next_uid" => nxt,
               "updated_at" => timestamp
