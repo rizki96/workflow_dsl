@@ -10,6 +10,7 @@ defmodule WorkflowDsl.Application do
     children = [
       # Starts a worker by calling: WorkflowDsl.Worker.start_link(arg)
       # {WorkflowDsl.Worker, arg}
+      {WorkflowDsl.Utils.Queue, []},
       %{
         id: WorkflowDsl.Repo,
         start: {WorkflowDsl.Repo, :start_link, []}

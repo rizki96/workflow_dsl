@@ -287,30 +287,47 @@ defmodule WorkflowDsl.CommandExecutor do
     end
   end
 
-  def execute_next(session, uid, params) do
-    if (exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
-      #Logger.log(:debug, "execute_next: next_exec #{inspect exec}, params: #{inspect params}")
-      timestamp = :os.system_time(:microsecond)
-      inserted_at = if is_nil(exec.inserted_at), do: timestamp, else: exec.inserted_at
-
-      Storages.update_next_exec(exec, %{
-        "next_uid" => params,
-        "inserted_at" => inserted_at,
-        "updated_at" => timestamp,
-      })
+  # TODO: change the next mechanism, using priority queue
+  def execute_next(session, uid, _params) do
+    exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})
+    next_list = Queue.to_list()
+      |> Enum.filter(fn {ts, _} -> ts == exec.inserted_at end)
+    next = next_list
+      |> Enum.take(-1)
+      |> Enum.at(0)
+    case next do
+      nil -> nil
+      {_, value} ->
+        if (next_exec = Storages.get_next_exec_by(%{"session" => session, "uid" => value["uid"]})) != nil do
+          #maybe_execute_function(session, value["next_uid"])
+          #maybe_execute_next(session, value["next_uid"])
+        end
     end
 
-    case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
-      nil -> # nil
-        #Logger.log(:debug, "execute_next: next_exec nil, params: #{inspect params}")
-        maybe_execute_function(session, params)
-        maybe_execute_next(session, params)
-      oldest ->
-        #Logger.log(:debug, "execute_next: oldest next_exec exists: #{inspect oldest}, params: #{inspect params}")
-        uid = if params in @halt_exec or is_nil(oldest.triggered_script), do: params, else: oldest.uid
-        maybe_execute_function(session, uid)
-        maybe_execute_next(session, uid)
-    end
+
+    # if (exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
+    #   #Logger.log(:debug, "execute_next: next_exec #{inspect exec}, params: #{inspect params}")
+    #   timestamp = :os.system_time(:microsecond)
+    #   inserted_at = if is_nil(exec.inserted_at), do: timestamp, else: exec.inserted_at
+
+    #   Storages.update_next_exec(exec, %{
+    #     "next_uid" => params,
+    #     "inserted_at" => inserted_at,
+    #     "updated_at" => timestamp,
+    #   })
+    # end
+
+    # case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
+    #   nil -> # nil
+    #     #Logger.log(:debug, "execute_next: next_exec nil, params: #{inspect params}")
+    #     maybe_execute_function(session, params)
+    #     maybe_execute_next(session, params)
+    #   oldest ->
+    #     #Logger.log(:debug, "execute_next: oldest next_exec exists: #{inspect oldest}, params: #{inspect params}")
+    #     uid = if params in @halt_exec or is_nil(oldest.triggered_script), do: params, else: oldest.uid
+    #     maybe_execute_function(session, uid)
+    #     maybe_execute_next(session, uid)
+    # end
   end
 
   defp maybe_execute_next(session, uid) do
@@ -364,7 +381,7 @@ defmodule WorkflowDsl.CommandExecutor do
   def execute_switch(session, uid, params) do
     case params do
       {:next, true, nxt} ->
-        #Logger.log(:debug, "execute_switch session: #{inspect session}, uid: #{inspect uid}, next: #{inspect nxt}")
+        Logger.log(:debug, "execute_switch session: #{inspect session}, uid: #{inspect uid}, next: #{inspect nxt}")
         if nxt not in @halt_exec do
           timestamp = :os.system_time(:microsecond)
           if (next = Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false})) != nil do
@@ -396,9 +413,9 @@ defmodule WorkflowDsl.CommandExecutor do
 
   def execute_condition(session, _uid, params) do
     {:ok, [result], _, _, _, _} = CondExprParser.parse_cond(params)
-    #Logger.log(:debug, "#{inspect result}")
+    Logger.log(:debug, "#{inspect result}")
     eval_res = Lang.eval(session, result)
-    #Logger.log(:debug, "#{inspect eval_res}")
+    Logger.log(:debug, "#{inspect eval_res}")
     eval_res
   end
 end

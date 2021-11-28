@@ -6,6 +6,7 @@ defmodule WorkflowDsl.Interpreter do
   alias WorkflowDsl.Storages
   alias WorkflowDsl.MathExprParser
   alias WorkflowDsl.Lang
+  alias WorkflowDsl.Utils.Queue
 
   @default_module_prefix "Elixir.WorkflowDsl"
   @halt_exec ["break", "end"]
@@ -41,6 +42,7 @@ defmodule WorkflowDsl.Interpreter do
 
   defp clear(session, uid) do
     #Logger.log(:debug, "clear session: #{session}, uid: #{uid}")
+    Enum.each(Queue.to_list(), fn _ -> Queue.pop())
     case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
       nil -> nil
       func -> Storages.delete_function(func)
@@ -52,65 +54,57 @@ defmodule WorkflowDsl.Interpreter do
     end
   end
 
+  # TODO: change the next mechanism, using priority queue
   defp record_next(session, uid, scripts) do
     # check for next, then add to the storages
     if length(Keyword.take(scripts, [:next])) > 0 do
-      Logger.log(:debug, "record_next session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
       {:next, nextval} = scripts
       |> Enum.filter(fn {k, _} -> k == :next end)
       |> Enum.at(0)
 
-      timestamp = :os.system_time(:microsecond)
-      case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
-        nil ->
-          Storages.create_next_exec(%{
-            "session" => session,
-            "uid" => uid,
-            "next_uid" => nextval,
-            "is_executed" => false,
-            "triggered_script" => :erlang.term_to_binary(scripts),
-            "inserted_at" => timestamp,
-            "updated_at" => timestamp
-          })
-        next_exec ->
-          #is_executed = if is_nil(next_exec.triggered_script), do: false, else: next_exec.is_executed
-          Storages.update_next_exec(next_exec, %{
-            "triggered_script" => :erlang.term_to_binary(scripts),
-            "next_uid" => nextval,
-            #"is_executed" => is_executed,
-            "updated_at" => timestamp
-          })
+      if Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) == nil do
+        Logger.log(:debug, "record_next session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
+        timestamp = :os.system_time(:microsecond)
+        Storages.create_next_exec(%{
+          "session" => session,
+          "uid" => uid,
+          "next_uid" => nextval,
+          "is_executed" => false,
+          "triggered_script" => :erlang.term_to_binary(scripts),
+          "inserted_at" => timestamp,
+          "updated_at" => timestamp
+        })
+        # push nextval to priority queue
+        Queue.push(timestamp, %{
+          "session" => session,
+          "uid" => nextval,
+          "is_executed" => false,
+          "inserted_at" => timestamp,
+          "updated_at" => timestamp
+        })
       end
+    else
+      if (next_exec = Storages.get_next_exec_by(%{"session" => session, "next_uid" => uid})) != nil do
+        #is_executed = if is_nil(next_exec.triggered_script), do: false, else: next_exec.is_executed
+        next = Queue.to_list()
+          |> Enum.filter(fn {ts, _} -> ts == next_exec.inserted_at end)
+          |> Enum.take(-1)
+          |> Enum.at(0)
 
-      case Storages.get_next_exec_by(%{"session" => session, "uid" => nextval}) do
-        nil ->
-          if nextval not in @halt_exec do
-            # NOTE: for switch key, inserted_at will be set later
-            timestamp = if length(Keyword.take(scripts, [:switch])) > 0, do: nil, else: :os.system_time(:microsecond)
+        case next do
+          nil -> nil
+          {_, value} ->
+            Logger.log(:debug, "record_next without next session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
+            timestamp = :os.system_time(:microsecond)
             Storages.create_next_exec(%{
-              "session" => session,
-              "uid" => nextval,
-              "next_uid" => nil,
+              "session" => value["session"],
+              "uid" => value["uid"],
               "is_executed" => false,
+              "triggered_script" => :erlang.term_to_binary(scripts),
               "inserted_at" => timestamp,
               "updated_at" => timestamp
             })
-          end
-        _ -> nil
-      end
-    else
-      timestamp = :os.system_time(:microsecond)
-      case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
-        nil -> nil
-        next_exec ->
-          Logger.log(:debug, "record_next update without next session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
-          #is_executed = if is_nil(next_exec.triggered_script), do: false, else: next_exec.is_executed
-          Storages.update_next_exec(next_exec, %{
-            "triggered_script" => :erlang.term_to_binary(scripts),
-            #"is_executed" => is_executed,
-            "inserted_at" => timestamp,
-            "updated_at" => timestamp
-          })
+        end
       end
     end
   end

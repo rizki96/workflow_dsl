@@ -20,7 +20,7 @@ defmodule WorkflowDsl.MixProject do
   end
 
   # Run "mix help deps" to learn about dependencies.
-  defp deps do
+  defp deps() do
     [
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
@@ -28,6 +28,7 @@ defmodule WorkflowDsl.MixProject do
       {:etso, "~> 0.1.5"},
       {:nimble_parsec, "~> 1.0"},
       {:req, git: "https://github.com/wojtekmach/req.git"},
+      {:priority_queue, "~> 1.0.0"},
       {:bypass, "~> 2.1", only: :test},
     ]
   end

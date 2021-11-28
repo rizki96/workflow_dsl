@@ -73,10 +73,22 @@ defmodule WorkflowDsl.Lang do
     val = eval(session, var)
     if is_binary(val), do: String.to_integer(val), else: val
   end
-  def eval(_session, {:double, [val]}), do: String.to_float(val)
+  def eval(_session, {:double, [val]}) do
+    if is_binary(val) do
+      {float_num, _} = Float.parse(val)
+      float_num
+    else
+      val
+    end
+  end
   def eval(session, {:double, ["double", var]}) do
     val = eval(session, var)
-    if is_binary(val), do: String.to_float(val), else: val
+    if is_binary(val) do
+      {float_num, _} = Float.parse(val)
+      float_num
+    else
+      val
+    end
   end
   def eval(_session, {:str, [val]}), do: to_string(val)
   def eval(session, {:str, ["string", var]}) do
