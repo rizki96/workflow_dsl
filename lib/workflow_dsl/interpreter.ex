@@ -9,7 +9,7 @@ defmodule WorkflowDsl.Interpreter do
   alias WorkflowDsl.Utils.Queue
 
   @default_module_prefix "Elixir.WorkflowDsl"
-  @halt_exec ["break", "end"]
+  #@halt_exec ["break", "end"]
 
   def process(input, session) when is_list(input) do
     Enum.map(input, fn {_, code} ->
@@ -42,7 +42,7 @@ defmodule WorkflowDsl.Interpreter do
 
   defp clear(session, uid) do
     #Logger.log(:debug, "clear session: #{session}, uid: #{uid}")
-    Enum.each(Queue.to_list(), fn _ -> Queue.pop())
+    Enum.each(Queue.to_list(), fn _ -> Queue.pop() end)
     case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
       nil -> nil
       func -> Storages.delete_function(func)
@@ -75,12 +75,13 @@ defmodule WorkflowDsl.Interpreter do
           "updated_at" => timestamp
         })
         # push nextval to priority queue
+        timestamp2 = :os.system_time(:microsecond)
         Queue.push(timestamp, %{
           "session" => session,
           "uid" => nextval,
           "is_executed" => false,
-          "inserted_at" => timestamp,
-          "updated_at" => timestamp
+          "inserted_at" => timestamp2,
+          "updated_at" => timestamp2
         })
       end
     else
@@ -95,14 +96,13 @@ defmodule WorkflowDsl.Interpreter do
           nil -> nil
           {_, value} ->
             Logger.log(:debug, "record_next without next session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
-            timestamp = :os.system_time(:microsecond)
             Storages.create_next_exec(%{
               "session" => value["session"],
               "uid" => value["uid"],
               "is_executed" => false,
               "triggered_script" => :erlang.term_to_binary(scripts),
-              "inserted_at" => timestamp,
-              "updated_at" => timestamp
+              "inserted_at" => value["inserted_at"],
+              "updated_at" => value["updated_at"]
             })
         end
       end

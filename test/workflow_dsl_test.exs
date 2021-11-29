@@ -43,7 +43,7 @@ defmodule WorkflowDslTest do
       Plug.Conn.resp(conn, 200, "")
     end)
 
-    for n <- 1..10 do
+    for n <- 2..2 do
       rand = Randomizer.randomizer(8)
       output = "./examples/workflow#{n}.json"
         |> WorkflowDsl.JsonExprParser.process(:file)

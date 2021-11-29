@@ -134,6 +134,11 @@ defmodule WorkflowDsl.Storages do
     |> Repo.get_by([session: session, uid: uid])
   end
 
+  def get_next_exec_by(%{"session" => session, "next_uid" => next_uid}) do
+    NextExec
+    |> Repo.get_by([session: session, next_uid: next_uid])
+  end
+
   def get_oldest_next_exec(%{"session" => session, "is_executed" => executed}) do
     NextExec
     |> where([ne], ne.session == ^session and ne.is_executed == ^executed and not is_nil(ne.inserted_at))
