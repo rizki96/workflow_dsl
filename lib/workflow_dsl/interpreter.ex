@@ -24,9 +24,9 @@ defmodule WorkflowDsl.Interpreter do
 
   def exec_command(session, uid, scripts) do
     #Logger.log(:debug, "exec_command session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
-    if (delayed = DelayedExecutor.value) != nil do
-      if delayed["session"] == session and delayed["uid"] == uid do
-        DelayedExecutor.reset(nil)
+    if (delayed = DelayedExecutor.value(session)) != nil do
+      if delayed == uid do
+        DelayedExecutor.reset(session, nil)
         Enum.map(scripts, fn p ->
           command(session, uid, p)
         end)
@@ -51,22 +51,22 @@ defmodule WorkflowDsl.Interpreter do
     |> Enum.map(fn {k,v} ->
       exec_command(session, k, v)
     end)
-    exec_delayed()
+    exec_delayed(session)
   end
 
-  defp exec_delayed() do
-    if (val = DelayedExecutor.value) != nil do
-      DelayedExecutor.reset(nil)
-      if (next_exec = Storages.get_next_exec_by(%{"session" => val["session"], "uid" => val["uid"]})) != nil do
-        exec_command(val["session"], next_exec.uid, :erlang.binary_to_term(next_exec.triggered_script))
+  defp exec_delayed(session) do
+    if (val = DelayedExecutor.value(session)) != nil do
+      DelayedExecutor.reset(session, nil)
+      if (next_exec = Storages.get_next_exec_by(%{"session" => session, "uid" => val})) != nil do
+        exec_command(session, next_exec.uid, :erlang.binary_to_term(next_exec.triggered_script))
       end
-      exec_delayed()
+      exec_delayed(session)
     end
   end
 
   defp clear(session, uid) do
     #Logger.log(:debug, "clear session: #{session}, uid: #{uid}")
-    DelayedExecutor.reset(nil)
+    DelayedExecutor.reset(session, nil)
 
     case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
       nil -> nil
