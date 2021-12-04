@@ -1,5 +1,6 @@
 defmodule WorkflowDsl.CommandExecutor do
 
+  alias WorkflowDsl.DelayedExecutor
   alias WorkflowDsl.LoopExprParser
   alias WorkflowDsl.MathExprParser
   alias WorkflowDsl.CondExprParser
@@ -8,7 +9,6 @@ defmodule WorkflowDsl.CommandExecutor do
   alias WorkflowDsl.JsonExprParser
   alias WorkflowDsl.Interpreter
   alias WorkflowDsl.Lang
-  alias WorkflowDsl.DelayedExecutor
 
   require Logger
 

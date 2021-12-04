@@ -3,10 +3,10 @@ defmodule WorkflowDsl.Interpreter do
   require Logger
 
   alias WorkflowDsl.CommandExecutor
+  alias WorkflowDsl.DelayedExecutor
   alias WorkflowDsl.Storages
   alias WorkflowDsl.MathExprParser
   alias WorkflowDsl.Lang
-  alias WorkflowDsl.DelayedExecutor
 
   @default_module_prefix "Elixir.WorkflowDsl"
   @halt_exec ["break", "end"]
