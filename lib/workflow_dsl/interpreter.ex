@@ -310,9 +310,10 @@ defmodule WorkflowDsl.Interpreter do
     end
   end
 
-  defp command(session, uid, {:body, params}) do
+  defp command(_session, _uid, {:body, _params}) do
+    # ignore body command
     #CommandExecutor.execute_body(session, uid, params)
-    Logger.log(:debug, "body: #{inspect params}, session: #{inspect session}, uid: #{uid}")
+    #Logger.log(:debug, "body: #{inspect params}, session: #{inspect session}, uid: #{uid}")
   end
 
   defp command(session, uid, input) do
