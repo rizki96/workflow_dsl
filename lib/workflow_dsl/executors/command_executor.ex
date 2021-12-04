@@ -12,7 +12,7 @@ defmodule WorkflowDsl.CommandExecutor do
 
   require Logger
 
-  @halt_exec ["break", "end"]
+  #@halt_exec ["break", "end"]
 
   def execute_for_in(session, init_val, input, steps, index \\ "index") do
     #Logger.log(:debug, "input: #{inspect input}, init_val: #{inspect init_val}, steps: #{inspect steps}, index: #{inspect index}")
@@ -282,12 +282,12 @@ defmodule WorkflowDsl.CommandExecutor do
   def execute_switch(session, uid, params) do
     case params do
       {:next, true, nxt} ->
-        if nxt not in @halt_exec do
+        #if nxt not in @halt_exec do
 
-          if DelayedExecutor.value(session) == nil, do: DelayedExecutor.reset(session, nxt)
-          #Logger.log(:debug, "#{inspect DelayedExecutor.value(session)}")
+        if DelayedExecutor.value(session) == nil, do: DelayedExecutor.reset(session, nxt)
+        #Logger.log(:debug, "#{inspect DelayedExecutor.value(session)}")
 
-        end
+        #end
       {:result, true, rst} ->
         execute_result(session, uid, rst)
       {:steps, true, stp} ->
