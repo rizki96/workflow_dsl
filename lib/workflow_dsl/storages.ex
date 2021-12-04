@@ -167,6 +167,20 @@ defmodule WorkflowDsl.Storages do
     |> Enum.at(0)
   end
 
+  def get_latest_next_exec(%{"session" => session}) do
+    NextExec
+    |> where([ne], ne.session == ^session)
+    |> Repo.all()
+    |> Enum.reduce([], fn it, acc ->
+      case acc do
+        [] -> [it]
+        [l] ->
+          if (l.inserted_at >= it.inserted_at), do: [l], else: [it]
+      end
+    end)
+    |> Enum.at(0)
+  end
+
   def create_next_exec(attrs) do
     %NextExec{}
     |> NextExec.changeset(attrs)

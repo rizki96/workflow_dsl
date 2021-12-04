@@ -20,7 +20,7 @@ defmodule WorkflowDslTest do
     Bypass.expect(bypass, "POST", "/storeTemp", fn conn ->
       params = Plug.Conn.fetch_query_params(conn)
       temp = String.to_float(params.query_params["temp"])
-      isNormal = if temp >= -14.2 and temp <= -14.0, do: true, else: false
+      isNormal = if temp >= -14.3 and temp <= -14.0, do: true, else: false
       Logger.log(:debug, "Bypass info, temp: #{inspect temp}, isNormal: #{inspect isNormal}")
       Plug.Conn.resp(conn, 200, "#{:ok}")
     end)
@@ -32,7 +32,7 @@ defmodule WorkflowDslTest do
       Plug.Conn.resp(conn, 200, "#{isNormal}")
     end)
     Bypass.expect(bypass, "GET", "/callAFirstStep", fn conn ->
-      rand = Enum.random(0..10)
+      rand = Enum.random(0..200)
       Logger.log(:debug, "Bypass info, rand: #{inspect rand}")
       conn
       |> Plug.Conn.prepend_resp_headers([{"content-type", "application/json"}])
@@ -43,7 +43,7 @@ defmodule WorkflowDslTest do
       Plug.Conn.resp(conn, 200, "")
     end)
 
-    for n <- 2..2 do
+    for n <- 1..10 do
       rand = Randomizer.randomizer(8)
       output = "./examples/workflow#{n}.json"
         |> WorkflowDsl.JsonExprParser.process(:file)

@@ -6,10 +6,10 @@ defmodule WorkflowDsl.Interpreter do
   alias WorkflowDsl.Storages
   alias WorkflowDsl.MathExprParser
   alias WorkflowDsl.Lang
-  alias WorkflowDsl.Utils.Queue
+  alias WorkflowDsl.DelayedExecutor
 
   @default_module_prefix "Elixir.WorkflowDsl"
-  #@halt_exec ["break", "end"]
+  @halt_exec ["break", "end"]
 
   def process(input, session) when is_list(input) do
     Enum.map(input, fn {_, code} ->
@@ -23,9 +23,19 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   def exec_command(session, uid, scripts) do
-    Enum.map(scripts, fn p ->
-      command(session, uid, p)
-    end)
+    #Logger.log(:debug, "exec_command session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
+    if (delayed = DelayedExecutor.value) != nil do
+      if delayed["session"] == session and delayed["uid"] == uid do
+        DelayedExecutor.reset(nil)
+        Enum.map(scripts, fn p ->
+          command(session, uid, p)
+        end)
+      end
+    else
+      Enum.map(scripts, fn p ->
+        command(session, uid, p)
+      end)
+    end
   end
 
   def execute(code, session) do
@@ -36,13 +46,28 @@ defmodule WorkflowDsl.Interpreter do
     Enum.map(code, fn {k, v} ->
       record_next(session, k, v)
       record_call(session, k, v)
+    end)
+    code
+    |> Enum.map(fn {k,v} ->
       exec_command(session, k, v)
     end)
+    exec_delayed()
+  end
+
+  defp exec_delayed() do
+    if (val = DelayedExecutor.value) != nil do
+      DelayedExecutor.reset(nil)
+      if (next_exec = Storages.get_next_exec_by(%{"session" => val["session"], "uid" => val["uid"]})) != nil do
+        exec_command(val["session"], next_exec.uid, :erlang.binary_to_term(next_exec.triggered_script))
+      end
+      exec_delayed()
+    end
   end
 
   defp clear(session, uid) do
     #Logger.log(:debug, "clear session: #{session}, uid: #{uid}")
-    Enum.each(Queue.to_list(), fn _ -> Queue.pop() end)
+    DelayedExecutor.reset(nil)
+
     case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
       nil -> nil
       func -> Storages.delete_function(func)
@@ -54,7 +79,6 @@ defmodule WorkflowDsl.Interpreter do
     end
   end
 
-  # TODO: change the next mechanism, using priority queue
   defp record_next(session, uid, scripts) do
     # check for next, then add to the storages
     if length(Keyword.take(scripts, [:next])) > 0 do
@@ -62,56 +86,62 @@ defmodule WorkflowDsl.Interpreter do
       |> Enum.filter(fn {k, _} -> k == :next end)
       |> Enum.at(0)
 
-      if Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) == nil do
-        Logger.log(:debug, "record_next session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
-        timestamp = :os.system_time(:microsecond)
+      #Logger.log(:debug, "record_next session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
+      timestamp = :os.system_time(:microsecond)
+      if (next_exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
+        Storages.update_next_exec(next_exec, %{
+          "next_uid" => nextval,
+          "triggered_script" => :erlang.term_to_binary(scripts),
+          "updated_at" => timestamp
+        })
+      else
         Storages.create_next_exec(%{
           "session" => session,
           "uid" => uid,
           "next_uid" => nextval,
           "is_executed" => false,
           "triggered_script" => :erlang.term_to_binary(scripts),
+          "has_cond_value" => false,
           "inserted_at" => timestamp,
           "updated_at" => timestamp
         })
-        # push nextval to priority queue
-        timestamp2 = :os.system_time(:microsecond)
-        Queue.push(timestamp, %{
+      end
+
+      if nextval not in @halt_exec and Storages.get_next_exec_by(%{"session" => session, "uid" => nextval}) == nil do
+        timestamp = :os.system_time(:microsecond)
+        Storages.create_next_exec(%{
           "session" => session,
           "uid" => nextval,
           "is_executed" => false,
-          "inserted_at" => timestamp2,
-          "updated_at" => timestamp2
+          "has_cond_value" => false,
+          "inserted_at" => timestamp,
+          "updated_at" => timestamp
         })
       end
     else
-      if (next_exec = Storages.get_next_exec_by(%{"session" => session, "next_uid" => uid})) != nil do
-        #is_executed = if is_nil(next_exec.triggered_script), do: false, else: next_exec.is_executed
-        next = Queue.to_list()
-          |> Enum.filter(fn {ts, _} -> ts == next_exec.inserted_at end)
-          |> Enum.take(-1)
-          |> Enum.at(0)
-
-        case next do
-          nil -> nil
-          {_, value} ->
-            Logger.log(:debug, "record_next without next session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
-            Storages.create_next_exec(%{
-              "session" => value["session"],
-              "uid" => value["uid"],
-              "is_executed" => false,
-              "triggered_script" => :erlang.term_to_binary(scripts),
-              "inserted_at" => value["inserted_at"],
-              "updated_at" => value["updated_at"]
-            })
-        end
+      timestamp = :os.system_time(:microsecond)
+      if (next_exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
+        Storages.update_next_exec(next_exec, %{
+          "triggered_script" => :erlang.term_to_binary(scripts),
+          "updated_at" => timestamp
+        })
+      else
+        Storages.create_next_exec(%{
+          "session" => session,
+          "uid" => uid,
+          "is_executed" => false,
+          "triggered_script" => :erlang.term_to_binary(scripts),
+          "has_cond_value" => false,
+          "inserted_at" => timestamp,
+          "updated_at" => timestamp
+        })
       end
     end
   end
 
   defp record_call(session, uid, scripts) do
     if length(Keyword.take(scripts, [:call])) > 0 do
-      Logger.log(:debug, "record_call session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
+      #Logger.log(:debug, "record_call session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
 
       case Storages.get_function_by(%{"session" => session, "uid" => uid}) do
         nil ->
@@ -169,7 +199,8 @@ defmodule WorkflowDsl.Interpreter do
           is_list(v) -> {k, Enum.map(v, fn cmd -> to_keyword(cmd) end)}
           true -> {k, to_keyword(v)}
         end
-      _ -> Logger.log(:debug, "#{inspect code}")
+      _ ->
+        Logger.log(:debug, "#{inspect code}")
         code
     end
   end

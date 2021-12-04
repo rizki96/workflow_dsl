@@ -8,6 +8,7 @@ defmodule WorkflowDsl.Storages.NextExec do
     field :next_uid, :string
     field :triggered_script, :binary
     field :is_executed, :boolean
+    field :has_cond_value, :boolean
     field :inserted_at, :integer
     field :updated_at, :integer
   end

@@ -8,11 +8,11 @@ defmodule WorkflowDsl.CommandExecutor do
   alias WorkflowDsl.JsonExprParser
   alias WorkflowDsl.Interpreter
   alias WorkflowDsl.Lang
-  alias WorkflowDsl.Utils.Queue
+  alias WorkflowDsl.DelayedExecutor
 
   require Logger
 
-  #@halt_exec ["break", "end"]
+  @halt_exec ["break", "end"]
 
   def execute_for_in(session, init_val, input, steps, index \\ "index") do
     #Logger.log(:debug, "input: #{inspect input}, init_val: #{inspect init_val}, steps: #{inspect steps}, index: #{inspect index}")
@@ -184,7 +184,7 @@ defmodule WorkflowDsl.CommandExecutor do
     Logger.log(:debug, "valname: #{inspect valname}, value: #{inspect result}")
   end
 
-  def execute_return(session, uid, val) do
+  def execute_return(session, _uid, val) do
     val =
     if is_binary(val) and String.starts_with?(val, "${") do
       {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
@@ -224,158 +224,42 @@ defmodule WorkflowDsl.CommandExecutor do
       end
     end
 
-    if Storages.count_next_execs(%{"session" => session}) > 0 do
-      case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
-        nil -> nil
-        oldest ->
-          #Logger.log(:debug, "execute_return, session: #{inspect session}, uid: #{inspect uid} #{inspect oldest}")
-          #Logger.log(:debug, "execute_return, before: #{inspect Storages.list_next_execs(%{"session" => session})}")
-          if oldest.uid == uid do
-            timestamp = :os.system_time(:microsecond)
-            # execute_return will mark all uid as executed, once it is found the match
-            all_next = Storages.list_next_execs(%{"session" => session})
-            Enum.map(all_next, fn it ->
-              Storages.update_next_exec(it, %{
-                "is_executed" => true,
-                "updated_at" => timestamp})
-            end)
-            #Logger.log(:debug, "execute_return, after: #{inspect Storages.list_next_execs(%{"session" => session})}")
-            val
-          end
-      end
-    else
+    if Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) != nil do
+      timestamp = :os.system_time(:microsecond)
+      all_next = Storages.list_next_execs(%{"session" => session})
+      Enum.map(all_next, fn it ->
+        Storages.update_next_exec(it, %{
+          "is_executed" => true,
+          "updated_at" => timestamp})
+      end)
       val
     end
   end
 
-  @spec maybe_execute_function(any, any) :: any
   def maybe_execute_function(session, uid) do
-    # TODO: using priority queue
     if (func = Storages.get_function_by(%{"session" => session, "uid" => uid})) != nil do
-      if Storages.count_next_execs(%{"session" => session}) > 0 do
-        case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
-          nil ->
-            Logger.log(:debug, "maybe_execute_function: session: #{inspect session}, uid: #{inspect uid}, oldest nil, #{inspect func}")
-            if not is_nil(func.name) and not is_nil(func.args) do
-              result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
-              Storages.update_function(func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
-            end
-          oldest ->
-
-            Logger.log(:debug, "maybe_execute_function: session: #{inspect session}, uid: #{inspect uid}, #{inspect oldest}, #{inspect func}")
-            if not is_nil(func.name) and not is_nil(func.args) and is_nil(func.executed_at)
-              and oldest.uid == func.uid do
-              result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
-              Storages.update_function(func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
-              is_executed = case result do
-                {:ok, _} -> true
-                {:error, _} -> true
-                _ -> false
-              end
-
-              if (next = Storages.get_next_exec_by(%{"session" => session, "uid" => oldest.uid})) != nil do
-                  timestamp = :os.system_time(:microsecond)
-                  Storages.update_next_exec(next, %{
-                    "is_executed" => is_executed,
-                    "updated_at" => timestamp})
-              end
-            end
+      if not is_nil(func.name) and not is_nil(func.args) do
+        result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
+        Storages.update_function(func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
+        is_executed = case result do
+          {:ok, _} -> true
+          {:error, _} -> true
+          _ -> false
         end
-      else
-        #Logger.log(:debug, "maybe_execute_function: No next command, session: #{inspect session}, uid: #{inspect uid}, ")
-        if not is_nil(func.name) and not is_nil(func.args) do
-          result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
-          Storages.update_function(func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
-        end
-      end
-    end
-  end
 
-  # TODO: change the next mechanism, using priority queue
-  def execute_next(session, uid, params) do
-    exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})
-    next_list = Queue.to_list()
-      |> Enum.filter(fn {ts, _} -> ts == exec.inserted_at end)
-    next = next_list
-      |> Enum.take(-1)
-      |> Enum.at(0)
-    Logger.log(:debug, "execute_next: exec #{inspect exec}, params: #{inspect params}, next: #{inspect next}")
-    case next do
-      nil -> nil
-      {_, value} ->
-        if (next_exec = Storages.get_next_exec_by(%{"session" => session, "uid" => value["uid"]})) != nil do
-          # remove the head of priority
-          pq_min = Queue.min()
-          if pq_min == Enum.at(next_list, 0) do
-            if Kernel.length(next_list) > 1 do
-              Queue.pop()
-              Queue.pop()
-            else
-              Queue.pop()
-            end
-          end
-
-          Logger.log(:debug, "execute_next: next_exec #{inspect next_exec}, params: #{inspect params}")
-          maybe_execute_function(session, next_exec.uid)
-          maybe_execute_next(session, next_exec.uid)
-        end
-    end
-
-
-    # if (exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
-    #   #Logger.log(:debug, "execute_next: next_exec #{inspect exec}, params: #{inspect params}")
-    #   timestamp = :os.system_time(:microsecond)
-    #   inserted_at = if is_nil(exec.inserted_at), do: timestamp, else: exec.inserted_at
-
-    #   Storages.update_next_exec(exec, %{
-    #     "next_uid" => params,
-    #     "inserted_at" => inserted_at,
-    #     "updated_at" => timestamp,
-    #   })
-    # end
-
-    # case Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) do
-    #   nil -> # nil
-    #     #Logger.log(:debug, "execute_next: next_exec nil, params: #{inspect params}")
-    #     maybe_execute_function(session, params)
-    #     maybe_execute_next(session, params)
-    #   oldest ->
-    #     #Logger.log(:debug, "execute_next: oldest next_exec exists: #{inspect oldest}, params: #{inspect params}")
-    #     uid = if params in @halt_exec or is_nil(oldest.triggered_script), do: params, else: oldest.uid
-    #     maybe_execute_function(session, uid)
-    #     maybe_execute_next(session, uid)
-    # end
-  end
-
-  defp maybe_execute_next(session, uid) do
-    #Logger.log(:debug, "maybe_execute_next, session: #{inspect session}, uid: #{inspect uid}")
-    #Logger.log(:debug, "maybe_execute_next, #{inspect Storages.list_next_execs()}")
-    if Storages.get_function_by(%{"session" => session, "uid" => uid}) == nil do
-      case Storages.get_next_exec_by(%{"session" => session, "uid" => uid}) do
-        nil -> nil
-        next_exec ->
-          #Logger.log(:debug, "maybe_execute_next, next_exec: #{inspect next_exec}")
-          if next_exec.is_executed == false and not is_nil(next_exec.triggered_script) do
+        if (next = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
             timestamp = :os.system_time(:microsecond)
-            Storages.update_next_exec(next_exec, %{"is_executed" => true, "updated_at" => timestamp})
-            if not is_nil(next_exec.next_uid) do
-              if (next = Storages.get_next_exec_by(%{"session" => session, "uid" => next_exec.next_uid})) != nil do
-                if not is_nil(next.triggered_script) do
-                  #Logger.log(:debug, "maybe_execute_next, next: #{inspect :erlang.binary_to_term(next.triggered_script)}")
-                  timestamp = :os.system_time(:microsecond)
-                  Storages.update_next_exec(next, %{"is_executed" => true, "updated_at" => timestamp})
-                  Interpreter.exec_command(session, next.uid, :erlang.binary_to_term(next.triggered_script))
-                end
-              end
-            end
-          else
-            if not is_nil(next_exec.triggered_script) do
-              #Logger.log(:debug, "maybe_execute_next, next_exec: #{inspect :erlang.binary_to_term(next_exec.triggered_script)}")
-              Interpreter.exec_command(session, uid, :erlang.binary_to_term(next_exec.triggered_script))
-            end
-          end
+            Storages.update_next_exec(next, %{
+              "is_executed" => is_executed,
+              "updated_at" => timestamp})
+        end
       end
     end
+  end
+
+  def execute_next(session, _uid, params) do
+    if DelayedExecutor.value == nil, do: DelayedExecutor.reset(%{"session" => session, "uid" => params})
+    #Logger.log(:debug, "#{inspect DelayedExecutor.value}")
   end
 
   def execute_result(session, uid, params) do
@@ -398,42 +282,12 @@ defmodule WorkflowDsl.CommandExecutor do
   def execute_switch(session, uid, params) do
     case params do
       {:next, true, nxt} ->
-        # TODO: check the priority queue
-        Logger.log(:debug, "execute_switch session: #{inspect session}, uid: #{inspect uid}, next: #{inspect nxt}")
-        exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})
-        next_list = Queue.to_list()
-          |> Enum.filter(fn {ts, _} -> ts == exec.inserted_at end)
+        if nxt not in @halt_exec do
 
-        if Kernel.length(next_list) < 2 do
-          timestamp = :os.system_time(:microsecond)
-          Queue.push(exec.inserted_at, %{
-            "session" => session,
-            "uid" => nxt,
-            "is_executed" => false,
-            "inserted_at" => timestamp,
-            "updated_at" => timestamp
-          })
+          if DelayedExecutor.value == nil, do: DelayedExecutor.reset(%{"session" => session, "uid" => nxt})
+          #Logger.log(:debug, "#{inspect DelayedExecutor.value}")
+
         end
-
-        # if nxt not in @halt_exec do
-        #   timestamp = :os.system_time(:microsecond)
-        #   if (next = Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false})) != nil do
-        #     #Logger.log(:debug, "execute_switch update_next_exec session: #{inspect session}, uid: #{inspect uid}, next: #{inspect next}")
-        #     Storages.update_next_exec(next, %{
-        #       "next_uid" => nxt,
-        #       "updated_at" => timestamp
-        #     })
-        #     Storages.create_next_exec(%{
-        #       "session" => session,
-        #       "uid" => nxt,
-        #       "next_uid" => nil,
-        #       "is_executed" => false,
-        #       "inserted_at" => timestamp,
-        #       "updated_at" => timestamp
-        #     })
-        #   end
-        # end
-        execute_next(session, uid, nxt)
       {:result, true, rst} ->
         execute_result(session, uid, rst)
       {:steps, true, stp} ->
@@ -446,9 +300,9 @@ defmodule WorkflowDsl.CommandExecutor do
 
   def execute_condition(session, _uid, params) do
     {:ok, [result], _, _, _, _} = CondExprParser.parse_cond(params)
-    Logger.log(:debug, "#{inspect result}")
+    #Logger.log(:debug, "#{inspect result}")
     eval_res = Lang.eval(session, result)
-    Logger.log(:debug, "#{inspect eval_res}")
+    #Logger.log(:debug, "#{inspect eval_res}")
     eval_res
   end
 end
