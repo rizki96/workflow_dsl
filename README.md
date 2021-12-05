@@ -1,5 +1,5 @@
 # workflow_dsl
-Domain specific language based on [`Google Cloud Workflow`](https://cloud.google.com/workflows/docs/reference/syntax)
+Domain specific language based on [`Google Cloud Workflows`](https://cloud.google.com/workflows/docs/reference/syntax)
 
 [![asciicast](https://asciinema.org/a/HGeSZaQTh7t2EgLD8ONrDpTMp.svg)](https://asciinema.org/a/HGeSZaQTh7t2EgLD8ONrDpTMp)
 
