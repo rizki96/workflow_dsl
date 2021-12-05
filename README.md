@@ -1,7 +1,7 @@
 # workflow_dsl
 Domain specific language based on [`Google Cloud Workflow`](https://cloud.google.com/workflows/docs/reference/syntax)
 
-<script id="asciicast-HGeSZaQTh7t2EgLD8ONrDpTMp" src="https://asciinema.org/a/HGeSZaQTh7t2EgLD8ONrDpTMp.js" async></script>
+[![asciicast](https://asciinema.org/a/HGeSZaQTh7t2EgLD8ONrDpTMp.svg)](https://asciinema.org/a/HGeSZaQTh7t2EgLD8ONrDpTMp)
 
 # Install
     - install erlang >= 22.x and elixir >= 1.12
