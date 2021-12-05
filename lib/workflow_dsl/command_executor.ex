@@ -1,11 +1,11 @@
 defmodule WorkflowDsl.CommandExecutor do
 
-  alias WorkflowDsl.DelayedExecutor
   alias WorkflowDsl.LoopExprParser
   alias WorkflowDsl.MathExprParser
   alias WorkflowDsl.CondExprParser
   alias WorkflowDsl.ListMapExprParser
   alias WorkflowDsl.Storages
+  alias WorkflowDsl.Storages.DelayedExec
   alias WorkflowDsl.JsonExprParser
   alias WorkflowDsl.Interpreter
   alias WorkflowDsl.Lang
@@ -21,7 +21,8 @@ defmodule WorkflowDsl.CommandExecutor do
       Lang.eval(session, res)
       |> Enum.with_index()
       |> Enum.map(fn {it, idx} ->
-        keep_value_process_steps(session, init_val, index, idx, it, steps)
+        keep_session_value(session, init_val, index, idx, it)
+        execute_steps(session, steps)
       end)
     end)
   end
@@ -50,11 +51,12 @@ defmodule WorkflowDsl.CommandExecutor do
     Enum.with_index(range)
     |> Enum.each(fn {it, idx} ->
       it = if precision > 0, do: Float.round(it * frac, precision), else: it * frac
-      keep_value_process_steps(session, init_val, index, idx, it, steps)
+      keep_session_value(session, init_val, index, idx, it)
+      execute_steps(session, steps)
     end)
   end
 
-  defp keep_value_process_steps(session, initval, idxname, idxval, number, steps) do
+  defp keep_session_value(session, initval, idxname, idxval, number) do
     case Storages.get_var_by(%{"session" => session, "name" => idxname}) do
       nil -> Storages.create_var(%{"session" => session, "name" => idxname, "value" => :erlang.term_to_binary(idxval)})
       var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(idxval)})
@@ -64,10 +66,6 @@ defmodule WorkflowDsl.CommandExecutor do
       nil -> Storages.create_var(%{"session" => session, "name" => initval, "value" => :erlang.term_to_binary(number)})
       var -> Storages.update_var(var, %{"value" => :erlang.term_to_binary(number)})
     end
-
-    steps
-    |> JsonExprParser.convert2tuple()
-    |> Interpreter.process(session)
   end
 
   defp create_range(reach_min, frac_min, reach_max, frac_max) do
@@ -106,6 +104,12 @@ defmodule WorkflowDsl.CommandExecutor do
     else
       {orig_val, frac}
     end
+  end
+
+  def execute_steps(session, steps) do
+    steps
+    |> JsonExprParser.convert2tuple()
+    |> Interpreter.process(session)
   end
 
   def execute_assign(session, valname, val) do
@@ -258,8 +262,8 @@ defmodule WorkflowDsl.CommandExecutor do
   end
 
   def execute_next(session, _uid, params) do
-    if DelayedExecutor.value(session) == nil, do: DelayedExecutor.reset(session, params)
-    #Logger.log(:debug, "#{inspect DelayedExecutor.value(session)}")
+    if DelayedExec.value(session) == nil, do: DelayedExec.reset(session, params)
+    #Logger.log(:debug, "#{inspect DelayedExec.value(session)}")
   end
 
   def execute_result(session, uid, params) do
@@ -284,16 +288,14 @@ defmodule WorkflowDsl.CommandExecutor do
       {:next, true, nxt} ->
         #if nxt not in @halt_exec do
 
-        if DelayedExecutor.value(session) == nil, do: DelayedExecutor.reset(session, nxt)
-        #Logger.log(:debug, "#{inspect DelayedExecutor.value(session)}")
+        if DelayedExec.value(session) == nil, do: DelayedExec.reset(session, nxt)
+        #Logger.log(:debug, "#{inspect DelayedExec.value(session)}")
 
         #end
       {:result, true, rst} ->
         execute_result(session, uid, rst)
       {:steps, true, stp} ->
-        stp
-        |> JsonExprParser.convert2tuple()
-        |> Interpreter.process(session)
+        execute_steps(session, stp)
       _ -> nil
     end
   end

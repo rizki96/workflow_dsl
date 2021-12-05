@@ -1,4 +1,4 @@
-defmodule WorkflowDsl.DelayedExecutor do
+defmodule WorkflowDsl.Storages.DelayedExec do
   use Agent
 
   def start_link(_args) do
