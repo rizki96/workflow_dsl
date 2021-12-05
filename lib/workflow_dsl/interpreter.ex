@@ -9,7 +9,7 @@ defmodule WorkflowDsl.Interpreter do
   alias WorkflowDsl.Lang
 
   @default_module_prefix "Elixir.WorkflowDsl"
-  @halt_exec ["break", "end"]
+  @halt_exec ["continue", "break", "end"]
 
   def process(input, session) when is_list(input) do
     Enum.map(input, fn {_, code} ->
