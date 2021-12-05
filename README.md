@@ -21,7 +21,6 @@ Domain specific language based on [`Google Cloud Workflow`](https://cloud.google
     - [x] return
     - [x] call, args, result, body
     - [x] next
-    - [x] result
     - [ ] try, except
     - [ ] subworkflows
     - [ ] YAML input format
