@@ -9,7 +9,7 @@ Domain specific language based on [`Google Cloud Workflows`](https://cloud.googl
     - mix test
 
 # Command line
-    - mix wf_run <json workflow file path / URL> [--verbose]
+    - mix wf.run <json workflow file path / URL> [--verbose]
 
 # Features
     - [x] JSON input format

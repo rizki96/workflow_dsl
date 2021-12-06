@@ -7,6 +7,7 @@ defmodule WorkflowDsl.MixProject do
       version: "0.1.0",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
+      aliases: aliases(),
       deps: deps()
     ]
   end
@@ -29,6 +30,17 @@ defmodule WorkflowDsl.MixProject do
       {:nimble_parsec, "~> 1.0"},
       {:req, git: "https://github.com/wojtekmach/req.git"},
       {:bypass, "~> 2.1", only: :test},
+    ]
+  end
+  # Aliases are shortcuts or tasks specific to the current project.
+  # For example, to install project dependencies and perform other setup tasks, run:
+  #
+  #     $ mix setup
+  #
+  # See the documentation for `Mix` for more info on aliases.
+  defp aliases do
+    [
+      "wf.run": ["wf_run"],
     ]
   end
 end
