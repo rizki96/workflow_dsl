@@ -261,7 +261,7 @@ defmodule WorkflowDsl.CommandExecutor do
     end
   end
 
-  def execute_next(session, _uid, params) do
+  def execute_next(session, params) do
     if DelayedExec.value(session) == nil, do: DelayedExec.reset(session, params)
     #Logger.log(:debug, "#{inspect DelayedExec.value(session)}")
   end
@@ -287,10 +287,7 @@ defmodule WorkflowDsl.CommandExecutor do
     case params do
       {:next, true, nxt} ->
         #if nxt not in @halt_exec do
-
-        if DelayedExec.value(session) == nil, do: DelayedExec.reset(session, nxt)
-        #Logger.log(:debug, "#{inspect DelayedExec.value(session)}")
-
+        execute_next(session, nxt)
         #end
       {:result, true, rst} ->
         execute_result(session, uid, rst)

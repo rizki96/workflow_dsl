@@ -274,7 +274,7 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp command(session, uid, {:next, params}) do
-    CommandExecutor.execute_next(session, uid, params)
+    CommandExecutor.execute_next(session, params)
     Logger.log(:debug, "next: #{inspect params}, session: #{inspect session}, uid: #{uid}")
   end
 
