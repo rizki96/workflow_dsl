@@ -1,11 +1,11 @@
 defmodule Mix.Tasks.Wf do
-  @shortdoc "Running the workflow"
-
-  use Mix.Task
 
   alias WorkflowDsl.Utils.Randomizer
 
   defmodule Run do
+    @shortdoc "Running the workflow"
+    use Mix.Task
+
     @impl Mix.Task
     def run(args) do
       parsed_args = OptionParser.parse(args, switches: [verbose: :boolean])
