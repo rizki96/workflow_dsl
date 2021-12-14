@@ -5,6 +5,10 @@ Domain specific language based on [`Google Cloud Workflows`](https://cloud.googl
     
 # Install
 - install erlang >= 22.x and elixir >= 1.12
+- in file mix.exs add below to `defp deps do`
+    [
+        {:workflow_dsl, git: "https://github.com/rizki96/workflow_dsl.git"},
+    ]
 - mix deps.get
 - mix test
 
