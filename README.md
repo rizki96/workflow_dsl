@@ -8,7 +8,7 @@ Domain specific language based on [`Google Cloud Workflows`](https://cloud.googl
 - in file mix.exs add below to `defp deps do`
     ```[
         {:workflow_dsl, git: "https://github.com/rizki96/workflow_dsl.git"},
-    ]```
+    ```]
 - mix deps.get
 - mix test
 
