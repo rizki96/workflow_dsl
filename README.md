@@ -1,7 +1,7 @@
 # workflow_dsl
 Domain specific language based on [`Google Cloud Workflows`](https://cloud.google.com/workflows/docs/reference/syntax)
 
-![workflow_dsl](https://user-images.githubusercontent.com/822394/144881919-77998e36-c4f9-40b2-ba69-5455a382b887.gif)
+![workflow_dsl_demo](https://user-images.githubusercontent.com/822394/146069349-a3f237c2-b8c2-4d5c-ba69-32ccdaa7b7ec.gif)
     
 # Install
 - install erlang >= 22.x and elixir >= 1.12
