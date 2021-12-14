@@ -34,10 +34,8 @@ defmodule Mix.Tasks.Wf do
 
           Mix.shell().info("\n#{input} is executed\n")
         _ ->
-          Mix.shell().info("
-            Running the JSON workflow DSL
-
-            \nCommand: mix wf.run <json workflow file path / URL> [--verbose]\n
+          Mix.shell().info("\nRunning the JSON workflow DSL
+\nCommand: mix wf.run <json workflow file path / URL> [--verbose]
             ")
       end
     end
