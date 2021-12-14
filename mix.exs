@@ -39,8 +39,6 @@ defmodule WorkflowDsl.MixProject do
   #
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
-    [
-      "wf.run": ["wf_run"],
-    ]
+    []
   end
 end
