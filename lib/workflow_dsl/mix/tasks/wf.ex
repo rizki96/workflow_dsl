@@ -3,8 +3,14 @@ defmodule Mix.Tasks.Wf do
   alias WorkflowDsl.Utils.Randomizer
 
   defmodule Run do
-    @shortdoc "Running the workflow"
     use Mix.Task
+    @moduledoc """
+    Running the JSON workflow DSL
+
+    Command: mix wf.run <json workflow file path / URL> [--verbose]
+
+    """
+    @shortdoc "Running the JSON workflow DSL"
 
     @impl Mix.Task
     def run(args) do
@@ -26,11 +32,14 @@ defmodule Mix.Tasks.Wf do
             |> WorkflowDsl.Interpreter.process(rand)
           end
 
-          IO.puts "\n#{input} is executed"
+          Mix.shell().info("\n#{input} is executed\n")
         _ ->
-          IO.puts "\nCommand: mix wf.run <json workflow file path / URL> [--verbose]"
-      end
+          Mix.shell().info("
+            Running the JSON workflow DSL
 
+            \nCommand: mix wf.run <json workflow file path / URL> [--verbose]\n
+            ")
+      end
     end
   end
 end
