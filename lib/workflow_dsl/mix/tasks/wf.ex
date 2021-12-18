@@ -32,9 +32,9 @@ defmodule Mix.Tasks.Wf do
             |> WorkflowDsl.Interpreter.process(rand)
           end
 
-          Mix.shell().info("\n#{input} is executed\n")
+          IO.puts("\n#{input} is executed\n")
         _ ->
-          Mix.shell().info("\nRunning the JSON workflow DSL
+          IO.puts("\nRunning the JSON workflow DSL
 \nCommand: mix wf.run <json workflow file path / URL> [--verbose]
             ")
       end
