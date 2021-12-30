@@ -69,6 +69,7 @@ defmodule WorkflowDsl.Storages do
     Function
     |> where([f], f.module == ^module and f.name == ^name)
     |> last(:created_at)
+    |> limit(1)
     |> Repo.one()
   end
 
