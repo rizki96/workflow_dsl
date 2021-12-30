@@ -31,6 +31,12 @@ defmodule Mix.Tasks.Wf do
             |> WorkflowDsl.JsonExprParser.process(:file)
             |> WorkflowDsl.Interpreter.process(rand)
           end
+          Enum.map(WorkflowDsl.Storages.list_functions_by(%{"session" => rand}), fn f ->
+            WorkflowDsl.Storages.delete_function(f)
+          end)
+          Enum.map(WorkflowDsl.Storages.list_vars_by(%{"session" => rand}), fn v ->
+            WorkflowDsl.Storages.delete_var(v)
+          end)
 
           IO.puts("\n#{input} is executed\n")
         _ ->

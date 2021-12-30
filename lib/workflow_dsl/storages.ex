@@ -53,6 +53,12 @@ defmodule WorkflowDsl.Storages do
     |> Repo.all()
   end
 
+  def list_functions_by(%{"session" => session}) do
+    Function
+    |> where([f], f.session == ^session)
+    |> Repo.all()
+  end
+
   def get_function!(id) do
     Function
     |> Repo.get!(id)
@@ -69,7 +75,6 @@ defmodule WorkflowDsl.Storages do
     Function
     |> where([f], f.module == ^module and f.name == ^name)
     |> last(:created_at)
-    |> limit(1)
     |> Repo.one()
   end
 
