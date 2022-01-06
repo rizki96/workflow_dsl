@@ -29,7 +29,8 @@
         "args": {
           "url": "http://localhost:1234/SmallFunc"
         },
-        "next": "end"
+        "result": "renderedContent",
+        "next": "writeFile"
       }
     },
     {
@@ -38,7 +39,8 @@
         "args": {
           "url": "http://localhost:1234/MediumFunc"
         },
-        "next": "end"
+        "result": "renderedContent",
+        "next": "writeFile"
       }
     },
     {
@@ -47,7 +49,18 @@
         "args": {
           "url": "http://localhost:1234/LargeFunc"
         },
-        "next": "end"
+        "result": "renderedContent",
+        "next": "writeFile"
+      }
+    },
+    {
+      "writeFile": {
+          "call": "file.write",
+          "args": {
+              "input": "${renderedContent.body}",
+              "output_path": "output/templates/write1.out"
+          },
+          "next": "end"
       }
     }
 ]

@@ -40,7 +40,7 @@ defmodule WorkflowDslTest do
     end)
     Bypass.expect(bypass, fn conn ->
       # We don't care about `request_path` or `method` for this test.
-      Plug.Conn.resp(conn, 200, "")
+      Plug.Conn.resp(conn, 200, "dummy")
     end)
 
     for n <- 1..10 do

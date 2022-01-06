@@ -175,12 +175,18 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp eval_args(session, args) do
+    Logger.log(:debug, "eval_args: #{inspect args}")
+    # TODO: eval a value when next field is exist
     Enum.map(args, fn arg ->
       case arg do
         [k, val] ->
           if is_binary(val) and String.starts_with?(val, "${") do
             {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
-            [k, Lang.eval(session, res)]
+            if (eval_result = Lang.eval(session, res)) != nil do
+              [k, eval_result]
+            else
+              [k, val]
+            end
           else
             [k, val]
           end
