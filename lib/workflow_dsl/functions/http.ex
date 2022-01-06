@@ -1,12 +1,16 @@
 defmodule WorkflowDsl.Http do
 
   require Logger
+  alias WorkflowDsl.Storages
+  alias WorkflowDsl.Lang
+  alias WorkflowDsl.MathExprParser
 
   def get(params) do
     Logger.log(:debug, "execute :get, params: #{inspect params}")
 
+    func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :get})
     parameters = Enum.map(params, fn [k,v] ->
-      {k, v}
+      {k, eval_var(func.session, v)}
     end)
     |> Enum.into(%{})
 
@@ -16,8 +20,9 @@ defmodule WorkflowDsl.Http do
   def post(params) do
     Logger.log(:debug, "execute :post, params: #{inspect params}")
 
+    func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :post})
     parameters = Enum.map(params, fn [k,v] ->
-      {k, v}
+      {k, eval_var(func.session, v)}
     end)
     |> Enum.into(%{})
 
@@ -27,8 +32,9 @@ defmodule WorkflowDsl.Http do
   def put(params) do
     Logger.log(:debug, "execute :update, params: #{inspect params}")
 
+    func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :put})
     parameters = Enum.map(params, fn [k,v] ->
-      {k, v}
+      {k, eval_var(func.session, v)}
     end)
     |> Enum.into(%{})
 
@@ -100,6 +106,15 @@ defmodule WorkflowDsl.Http do
       not Map.has_key?(params, "body") -> {:missingparam, [:body], params}
       not Map.has_key?(params, "url") -> {:missingparam, [:url], params}
       true -> {:unknownparam, [], params}
+    end
+  end
+
+  defp eval_var(session, var) do
+    if is_binary(var) and String.starts_with?(var, "${") do
+      {:ok, [res], _, _, _, _} = MathExprParser.parse_math(var)
+      Lang.eval(session, res)
+    else
+      var
     end
   end
 end

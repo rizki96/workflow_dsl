@@ -75,7 +75,8 @@ defmodule WorkflowDsl.Storages do
     Function
     |> where([f], f.module == ^module and f.name == ^name)
     |> last(:created_at)
-    |> Repo.one()
+    |> Repo.all()
+    |> Enum.at(0)
   end
 
   def get_last_function_executed() do

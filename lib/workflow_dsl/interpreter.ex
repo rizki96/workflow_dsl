@@ -175,8 +175,7 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp eval_args(session, args) do
-    Logger.log(:debug, "eval_args: #{inspect args}")
-    # TODO: eval a value when next field is exist
+    #Logger.log(:debug, "eval_args: #{inspect args}")
     Enum.map(args, fn arg ->
       case arg do
         [k, val] ->
