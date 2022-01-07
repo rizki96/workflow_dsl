@@ -5,7 +5,6 @@ defmodule WorkflowDsl.Interpreter do
   alias WorkflowDsl.CommandExecutor
   alias WorkflowDsl.Storages
   alias WorkflowDsl.Storages.DelayedExec
-  alias WorkflowDsl.MathExprParser
   alias WorkflowDsl.Lang
 
   @default_module_prefix "Elixir.WorkflowDsl"
@@ -179,13 +178,8 @@ defmodule WorkflowDsl.Interpreter do
     Enum.map(args, fn arg ->
       case arg do
         [k, val] ->
-          if is_binary(val) and String.starts_with?(val, "${") do
-            {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
-            if (eval_result = Lang.eval(session, res)) != nil do
-              [k, eval_result]
-            else
-              [k, val]
-            end
+          if (eval_result = Lang.eval(session, val)) != nil do
+            [k, eval_result]
           else
             [k, val]
           end

@@ -2,6 +2,7 @@ defmodule WorkflowDsl.Lang do
 
   alias WorkflowDsl.Storages
   alias WorkflowDsl.ListMapExprParser
+  alias WorkflowDsl.MathExprParser
 
   require Logger
 
@@ -147,6 +148,16 @@ defmodule WorkflowDsl.Lang do
   end
   def eval(session, {:lte, [val0, val1]}) do
     eval(session, val0) <= eval(session, val1)
+  end
+
+  # default function
+  def eval(session, var) do
+    if is_binary(var) and String.starts_with?(var, "${") do
+      {:ok, [res], _, _, _, _} = MathExprParser.parse_math(var)
+      eval(session, res)
+    else
+      var
+    end
   end
 
 end

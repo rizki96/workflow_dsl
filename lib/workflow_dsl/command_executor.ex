@@ -113,14 +113,7 @@ defmodule WorkflowDsl.CommandExecutor do
   end
 
   def execute_assign(session, valname, val) do
-    result =
-    if is_binary(val) and String.starts_with?(val, "${") do
-      {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
-      #Logger.log(:debug, "#{inspect res}")
-      Lang.eval(session, res)
-    else
-      val
-    end
+    result = Lang.eval(session, val)
 
     # handle the mutable vars storage
     {:ok, names, _, _, _, _} = ListMapExprParser.parse_list_map(valname)
@@ -190,12 +183,8 @@ defmodule WorkflowDsl.CommandExecutor do
 
   def execute_return(session, _uid, val) do
     val =
-    if is_binary(val) and String.starts_with?(val, "${") do
-      {:ok, [res], _, _, _, _} = MathExprParser.parse_math(val)
-      #Logger.log(:debug, "#{inspect res}")
-      eval_res = Lang.eval(session, res)
-      #Logger.log(:debug, "#{inspect eval_res}")
-      eval_res
+    if is_binary(val) do
+      Lang.eval(session, val)
     else
       cond do
         is_list(val) ->
@@ -203,21 +192,9 @@ defmodule WorkflowDsl.CommandExecutor do
           Enum.map(val, fn v ->
             case v do
               [var, res] ->
-                if is_binary(res) and String.starts_with?(res, "${") do
-                  {:ok, [res], _, _, _, _} = MathExprParser.parse_math(res)
-                  eval_res = Lang.eval(session, res)
-                  {var, eval_res}
-                else
-                  {var, res}
-                end
+                {var, Lang.eval(session, res)}
               var ->
-                if is_binary(var) and String.starts_with?(var, "${") do
-                  {:ok, [res], _, _, _, _} = MathExprParser.parse_math(var)
-                  eval_res = Lang.eval(session, res)
-                  eval_res
-                else
-                  var
-                end
+                Lang.eval(session, var)
             end
           end)
           case Enum.at(l, 0) do

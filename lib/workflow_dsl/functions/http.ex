@@ -1,16 +1,15 @@
 defmodule WorkflowDsl.Http do
 
   require Logger
-  alias WorkflowDsl.Storages
   alias WorkflowDsl.Lang
-  alias WorkflowDsl.MathExprParser
+  alias WorkflowDsl.Storages
 
   def get(params) do
     Logger.log(:debug, "execute :get, params: #{inspect params}")
 
     func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :get})
     parameters = Enum.map(params, fn [k,v] ->
-      {k, eval_var(func.session, v)}
+      {k, Lang.eval(func.session, v)}
     end)
     |> Enum.into(%{})
 
@@ -22,7 +21,7 @@ defmodule WorkflowDsl.Http do
 
     func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :post})
     parameters = Enum.map(params, fn [k,v] ->
-      {k, eval_var(func.session, v)}
+      {k, Lang.eval(func.session, v)}
     end)
     |> Enum.into(%{})
 
@@ -34,7 +33,7 @@ defmodule WorkflowDsl.Http do
 
     func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :put})
     parameters = Enum.map(params, fn [k,v] ->
-      {k, eval_var(func.session, v)}
+      {k, Lang.eval(func.session, v)}
     end)
     |> Enum.into(%{})
 
@@ -109,12 +108,4 @@ defmodule WorkflowDsl.Http do
     end
   end
 
-  defp eval_var(session, var) do
-    if is_binary(var) and String.starts_with?(var, "${") do
-      {:ok, [res], _, _, _, _} = MathExprParser.parse_math(var)
-      Lang.eval(session, res)
-    else
-      var
-    end
-  end
 end
