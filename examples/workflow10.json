@@ -57,7 +57,7 @@
       "writeFile": {
           "call": "file.write",
           "args": {
-              "input": "${renderedContent.body}",
+              "input_string": "${renderedContent.body}",
               "output_path": "output/templates/write1.out"
           },
           "next": "end"

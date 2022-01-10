@@ -37,10 +37,26 @@ defmodule WorkflowDsl.File do
       _ -> options
     end
 
-    with true <- Map.has_key?(parameters, "input"),
+    with true <- Map.has_key?(parameters, "input_string"),
       true <- Map.has_key?(parameters, "output_path"),
       :ok <- File.mkdir_p(Path.dirname(parameters["output_path"])) do
-        File.write(parameters["output_path"], parameters["input"], options)
+        File.write(parameters["output_path"], parameters["input_string"], options)
+    end
+
+    with true <- Map.has_key?(parameters, "input_path"),
+      true <- Map.has_key?(parameters, "output_path"),
+      :ok <- File.mkdir_p(Path.dirname(parameters["output_path"])) do
+        input_file = File.read!(parameters["input_path"])
+        File.write(parameters["output_path"], input_file, options)
+    end
+
+    with true <- Map.has_key?(parameters, "input_url"),
+      true <- Map.has_key?(parameters, "output_path"),
+      :ok <- File.mkdir_p(Path.dirname(parameters["output_path"])) do
+        if String.starts_with?(parameters["input_url"], ["http://", "https://"]) do
+          {:ok, content} = Req.request(:get, parameters["input_url"])
+          File.write(parameters["output_path"], content.body, options)
+        end
     end
   end
 
