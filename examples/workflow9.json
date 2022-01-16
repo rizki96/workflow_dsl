@@ -1,15 +1,19 @@
 [
     {
+      "define_var": {
+        "call": "var.write",
+        "args": {
+          "input_path": "examples/array.csv",
+          "read_as": "csv"
+        },
+        "result": "array_var"
+      }
+    },
+    {
       "define": {
         "assign": [
           {
-            "array": [
-              "foo",
-              "ba",
-              "r",
-              "ba",
-              "z"
-            ]
+            "array": "${array_var.array}"
           },
           {
             "result": ""

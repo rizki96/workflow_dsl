@@ -33,11 +33,11 @@
               "verifySource": {
                 "switch": [
                   {
-                    "condition": "${not(textToTranslate[text] in allowedSourceLang)}",
+                    "condition": "${not(textAndSourceLang[text] in allowedSourceLang)}",
                     "next": "continue"
                   },
                   {
-                    "condition": "${textToTranslate[text] == \"fr\"}",
+                    "condition": "${textAndSourceLang[text] == \"fr\"}",
                     "next": "skipFrench"
                   }
                 ]
