@@ -45,7 +45,17 @@
             "i": "${i+1}"
           }
         ],
-        "next": "check_condition"
+        "next": "write_file"
+      }
+    },
+    {
+      "write_file": {
+          "call": "file.write",
+          "args": {
+              "input_string": "${result}",
+              "output_path": "${\"output/templates/loop\" + string(i) + \".out\"}"
+          },
+          "next": "check_condition"
       }
     },
     {

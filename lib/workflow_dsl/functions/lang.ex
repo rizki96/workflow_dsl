@@ -67,7 +67,9 @@ defmodule WorkflowDsl.Lang do
   def eval(session, {:add, [val0, val1]}) do
     eval0 = eval(session, val0)
     eval1 = eval(session, val1)
-    if is_binary(eval0) and is_binary(eval1), do: eval0 <> eval1, else: eval0 + eval1
+    if not is_nil(eval0) and not is_nil(eval1) do
+      if is_binary(eval0) and is_binary(eval1), do: eval0 <> eval1, else: eval0 + eval1
+    end
   end
   def eval(_session, {:int, [val]}), do: val
   def eval(session, {:int, [_, var]}) do
