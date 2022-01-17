@@ -1,5 +1,15 @@
 [
     {
+      "define_password": {
+        "call": "var.write",
+        "args": {
+          "input_path": "examples/password.json",
+          "read_as": "json"
+        },
+        "result": "password_storage"
+      }
+    },
+    {
       "define_var": {
         "call": "var.write",
         "args": {
@@ -64,7 +74,7 @@
         "args": {
             "relay": "smtp.gmail.com",
             "username": "wfreceiver@gmail.com",
-            "password": "9cFJZdE4S9YCpcd",
+            "password": "${password_storage.gmail}",
             "port": 587,
             "tls": "always",
             "subject": "This is a test",

@@ -26,3 +26,5 @@ workflow_dsl-*.tar
 /tmp/
 
 /output/
+
+/examples/password.json
