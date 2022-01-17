@@ -220,6 +220,7 @@ defmodule WorkflowDsl.CommandExecutor do
   def maybe_execute_function(session, uid) do
     if (func = Storages.get_function_by(%{"session" => session, "uid" => uid})) != nil do
       if not is_nil(func.name) and not is_nil(func.args) do
+        #Logger.log(:debug, "#{inspect :erlang.binary_to_term(func.args)}")
         result = apply(:erlang.binary_to_term(func.module), :erlang.binary_to_term(func.name), [:erlang.binary_to_term(func.args)])
         Storages.update_function(func, %{"result" => :erlang.term_to_binary(result), "executed_at" => :os.system_time(:microsecond)})
         is_executed = case result do

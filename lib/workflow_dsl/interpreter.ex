@@ -179,8 +179,10 @@ defmodule WorkflowDsl.Interpreter do
       case arg do
         [k, val] ->
           if (eval_result = Lang.eval(session, val)) != nil do
+            #Logger.log(:debug, "eval_args eval_result: #{inspect eval_result}")
             [k, eval_result]
           else
+            #Logger.log(:debug, "eval_args no eval_result: #{inspect val}")
             [k, val]
           end
         other -> other

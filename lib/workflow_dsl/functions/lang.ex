@@ -96,7 +96,7 @@ defmodule WorkflowDsl.Lang do
   def eval(_session, {:str, [val]}), do: to_string(val)
   def eval(session, {:str, ["string", var]}) do
     val = eval(session, var)
-    if is_binary(val), do: val, else: to_string(val)
+    if is_nil(val), do: val, else: to_string(val)
   end
   def eval(_session, {:bool, [val]}), do: String.to_existing_atom(String.downcase(val))
   def eval(session, {:vars, [val]}) do
