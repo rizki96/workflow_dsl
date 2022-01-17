@@ -50,19 +50,29 @@
     },
     {
       "write_file": {
-          "call": "file.write",
-          "args": {
-              "input_string": "${result}",
-              "output_path": "${\"output/templates/loop\" + string(i) + \".out\"}"
-          },
-          "next": "check_condition"
+        "call": "file.write",
+        "args": {
+            "input_string": "${result}",
+            "output_path": "${\"output/templates/loop\" + string(i) + \".out\"}"
+        },
+        "next": "check_condition"
       }
     },
     {
       "exit_loop": {
-        "return": {
-          "concat_result": "${result}"
-        }
+        "call": "smtp.send",
+        "args": {
+            "relay": "smtp.gmail.com",
+            "username": "wfreceiver@gmail.com",
+            "password": "9cFJZdE4S9YCpcd",
+            "port": 587,
+            "tls": "always",
+            "subject": "This is a test",
+            "from": "wfreceiver@gmail.com",
+            "to": ["wfreceiver+addr1@gmail.com"],
+            "text": "${result}"
+        },
+        "next": "end"
       }
     }
 ]
