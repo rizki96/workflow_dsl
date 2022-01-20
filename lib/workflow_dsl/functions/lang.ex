@@ -154,11 +154,11 @@ defmodule WorkflowDsl.Lang do
 
   # default function
   def eval(session, var) do
-    if is_binary(var) and String.starts_with?(var, "${") do
-      {:ok, [res], _, _, _, _} = MathExprParser.parse_math(var)
-      eval(session, res)
-    else
-      var
+    cond do
+      is_binary(var) and String.starts_with?(var, "${") ->
+        {:ok, [res], _, _, _, _} = MathExprParser.parse_math(var)
+        eval(session, res)
+      true -> var
     end
   end
 

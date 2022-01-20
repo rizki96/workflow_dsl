@@ -85,51 +85,23 @@ defmodule WorkflowDsl.Smtp do
         _ -> ""
       end
 
-    func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :send})
     to =
       with true <- Map.has_key?(parameters, "to") do
-        cond do
-          is_list(parameters["to"]) -> Enum.map(
-            parameters["to"], fn to ->
-              Lang.eval(func.session, to)
-            end)
-          is_binary(parameters["to"]) -> [
-            Lang.eval(func.session, parameters["to"])
-          ]
-          true -> parameters["to"]
-        end
+        eval_args(parameters["to"])
       else
         _ -> []
       end
 
     cc =
       with true <- Map.has_key?(parameters, "cc") do
-        cond do
-          is_list(parameters["cc"]) -> Enum.map(
-            parameters["cc"], fn to ->
-              Lang.eval(func.session, to)
-            end)
-          is_binary(parameters["cc"]) -> [
-            Lang.eval(func.session, parameters["cc"])
-          ]
-          true -> parameters["cc"]
-        end
+        eval_args(parameters["cc"])
       else
         _ -> []
       end
 
     bcc =
       with true <- Map.has_key?(parameters, "bcc") do
-        cond do
-          is_list(parameters["bcc"]) -> Enum.map(
-            parameters["bcc"], fn to ->
-              Lang.eval(func.session, to)
-            end)
-          is_binary(parameters["bcc"]) -> [
-            Lang.eval(func.session, parameters["bcc"])
-          ]
-          true -> parameters["bcc"]
-        end
+        eval_args(parameters["bcc"])
       else
         _ -> []
       end
@@ -157,5 +129,16 @@ defmodule WorkflowDsl.Smtp do
       text: text,
       html: html
     }
+  end
+
+  defp eval_args(param) do
+    func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :send})
+    cond do
+      is_list(param) -> Enum.map(
+        param, fn to ->
+          Lang.eval(func.session, to)
+        end)
+      true -> [param]
+    end
   end
 end
