@@ -30,7 +30,7 @@
           "url": "http://localhost:1234/SmallFunc"
         },
         "result": "renderedContent",
-        "next": "writeFile"
+        "next": "displayVar"
       }
     },
     {
@@ -40,7 +40,7 @@
           "url": "http://localhost:1234/MediumFunc"
         },
         "result": "renderedContent",
-        "next": "writeFile"
+        "next": "displayVar"
       }
     },
     {
@@ -50,17 +50,37 @@
           "url": "http://localhost:1234/LargeFunc"
         },
         "result": "renderedContent",
+        "next": "displayVar"
+      }
+    },
+    {
+      "displayVar": {
+        "call": "sys.log",
+        "args": {
+            "text": "${renderedContent.body}",
+            "head_or_tail": "tail",
+            "line_count": 3
+        },
+        "next": "putToSleep"
+      }
+    },
+    {
+      "putToSleep": {
+        "call": "sys.sleep",
+        "args": {
+            "time_in_secs": 5
+        },
         "next": "writeFile"
       }
     },
     {
       "writeFile": {
-          "call": "file.write",
-          "args": {
-              "input_string": "${renderedContent.body}",
-              "output_path": "output/templates/write.out"
-          },
-          "next": "end"
+        "call": "file.write",
+        "args": {
+            "input_string": "${renderedContent.body}",
+            "output_path": "output/templates/write.out"
+        },
+        "next": "end"
       }
     }
 ]
