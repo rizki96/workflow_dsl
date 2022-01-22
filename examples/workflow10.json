@@ -30,7 +30,7 @@
           "url": "http://localhost:1234/SmallFunc"
         },
         "result": "renderedContent",
-        "next": "displayVar"
+        "next": "displayString"
       }
     },
     {
@@ -40,7 +40,7 @@
           "url": "http://localhost:1234/MediumFunc"
         },
         "result": "renderedContent",
-        "next": "displayVar"
+        "next": "displayString"
       }
     },
     {
@@ -50,16 +50,17 @@
           "url": "http://localhost:1234/LargeFunc"
         },
         "result": "renderedContent",
-        "next": "displayVar"
+        "next": "displayString"
       }
     },
     {
-      "displayVar": {
-        "call": "sys.log",
+      "displayString": {
+        "call": "sys.string",
         "args": {
-            "text": "${renderedContent.body}",
-            "head_or_tail": "tail",
-            "line_count": 3
+            "input_string": "${renderedContent.body}",
+            "command": "grep",
+            "match": "dum",
+            "line_displayed_count": 2
         },
         "next": "putToSleep"
       }

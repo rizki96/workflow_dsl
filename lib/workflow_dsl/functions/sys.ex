@@ -23,58 +23,80 @@ defmodule WorkflowDsl.Sys do
     Process.sleep(time * 1000)
   end
 
-  def log(params) do
+  def string(params) do
     Logger.log(:debug, "execute :log, params: #{inspect params}")
 
-    func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :log})
+    func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :string})
     parameters = Enum.map(params, fn [k,v] ->
       {k, Lang.eval(func.session, v)}
     end)
     |> Enum.into(%{})
 
     display =
-      with true <- Map.has_key?(parameters, "head_or_tail") do
-        parameters["head_or_tail"]
+      with true <- Map.has_key?(parameters, "command") do
+        parameters["command"]
       else
         _ -> "head"
       end
 
     line_count =
-      with true <- Map.has_key?(parameters, "line_count") do
-        parameters["line_count"]
+      with true <- Map.has_key?(parameters, "line_displayed_count") do
+        parameters["line_displayed_count"]
       else
         _ -> 0
       end
 
     text =
-      with true <- Map.has_key?(parameters, "text") do
-        parameters["text"]
+      with true <- Map.has_key?(parameters, "input_string") do
+        parameters["input_string"]
+      else
+        _ -> ""
+      end
+
+    like =
+      with true <- Map.has_key?(parameters, "match") do
+        parameters["match"]
       else
         _ -> ""
       end
 
     device =
-      with true <- Map.has_key?(parameters, "device") do
-        String.to_existing_atom(parameters["device"])
+      with true <- Map.has_key?(parameters, "display_device") do
+        String.to_existing_atom(parameters["display_device"])
       else
         _ -> :stdio
       end
 
-
     output =
     case display do
       "head" ->
-        String.split(text, "\n")
-        |> Enum.take(line_count)
-        |> Enum.join("\n")
+        case line_count do
+          0 -> text
+          n ->
+            String.split(text, "\n")
+            |> Enum.take(n)
+            |> Enum.join("\n")
+        end
       "tail" ->
-        String.split(text, "\n")
-        |> Enum.take(-line_count)
+        case line_count do
+          0 -> text
+          n ->
+            String.split(text, "\n")
+            |> Enum.take(-n)
+            |> Enum.join("\n")
+        end
+      "grep" ->
+        grep_list =
+          String.split(text, "\n")
+          |> Enum.filter(fn it ->
+            it =~ like
+          end)
+        case line_count do
+          0 -> grep_list
+          n -> Enum.take(grep_list, n)
+        end
         |> Enum.join("\n")
-      _ ->
-        String.split(text, "\n")
-        |> Enum.take(line_count)
-        |> Enum.join("\n")
+      _ -> text
     end
 
     IO.puts(device, output)
