@@ -115,7 +115,10 @@ defmodule WorkflowDsl.Lang do
   end
   def eval(session, {:len, [_func, val]}) do
     values = eval(session, val)
-    Kernel.length(values)
+    cond do
+      is_binary(values) -> String.length(values)
+      true -> Kernel.length(values)
+    end
   end
   def eval(_session, {:keys, [vals]}) do
     Enum.map(vals, fn it ->
