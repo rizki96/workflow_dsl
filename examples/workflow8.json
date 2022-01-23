@@ -44,9 +44,17 @@
               "storeTemp": {
                 "call": "http.post",
                 "args": {
+                  "headers": {
+                    "Content-Type": "application/json",
+                    "accept": "*/*"
+                  },  
                   "url": "${\"http://localhost:1234/storeTemp?temp=\" + string(temp)}"
                 },
-                "body": "${temp}"
+                "body": {
+                  "args":{
+                      "temp": "${temp}"
+                  }
+                }
               }
             }
           ]
