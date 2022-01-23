@@ -110,6 +110,10 @@ defmodule WorkflowDslTest do
     input = "${first_result.body.SomeField < 10}"
     output = input |> WorkflowDsl.CondExprParser.parse_cond()
     Logger.log(:debug, "cond expression #{input}: #{inspect output}")
+
+    input = "${currentTime.body.dayOfTheWeek == \"\"}"
+    output = input |> WorkflowDsl.CondExprParser.parse_cond()
+    Logger.log(:debug, "cond expression #{input}: #{inspect output}")
   end
 
   @tag :skip
