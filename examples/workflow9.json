@@ -70,19 +70,7 @@
     },
     {
       "exit_loop": {
-        "call": "smtp.send",
-        "args": {
-            "relay": "smtp.gmail.com",
-            "username": "wfreceiver@gmail.com",
-            "password": "${password_storage.gmail}",
-            "port": 587,
-            "tls": "always",
-            "subject": "This is a test",
-            "from": "wfreceiver@gmail.com",
-            "to": ["wfreceiver+addr1@gmail.com"],
-            "text": "${result}"
-        },
-        "next": "end"
+        "return": "${result}"
       }
     }
 ]

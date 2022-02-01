@@ -1,6 +1,6 @@
 defmodule WorkflowDslTest do
   use ExUnit.Case
-  doctest WorkflowDsl
+  # doctest WorkflowDsl
 
   alias WorkflowDsl.Utils.Randomizer
   require Logger
