@@ -29,7 +29,6 @@ defmodule WorkflowDsl.MixProject do
       {:etso, "~> 0.1.5"},
       {:nimble_parsec, "~> 1.0"},
       {:nimble_csv, "~> 1.2"},
-      {:mailman, "~> 0.4"},
       {:req, git: "https://github.com/wojtekmach/req.git"},
       {:bypass, "~> 2.1", only: :test},
     ]
