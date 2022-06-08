@@ -1,7 +1,7 @@
 [
     {
       "define_password": {
-        "call": "var.write",
+        "call": "file.read",
         "args": {
           "input_path": "examples/password.json",
           "read_as": "json"
@@ -11,7 +11,7 @@
     },
     {
       "define_var": {
-        "call": "var.write",
+        "call": "file.read",
         "args": {
           "input_path": "examples/array.csv",
           "read_as": "csv"

@@ -5,8 +5,9 @@ defmodule WorkflowDsl.Var do
   alias WorkflowDsl.Storages
   alias NimbleCSV.RFC4180, as: CSV
 
+  # NOTE: will deprecate this
   def write(params) do
-    Logger.debug("execute :write #{inspect params}")
+    Logger.debug("execute :write #{inspect params} DEPRECATE: change to file.read")
 
     func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :write})
     parameters = Enum.map(params, fn [k,v] ->
