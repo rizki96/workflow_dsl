@@ -6,7 +6,7 @@
             "textAndSourceLang": {
               "Hello": "en",
               "Ciao": "it",
-              "Auf wiedersehen": "de",
+              "Aufwiedersehen": "de",
               "Goodbye": "en",
               "Bonjour": "fr",
               "lkajshflkj": "unknown"
@@ -40,7 +40,8 @@
                     "condition": "${textAndSourceLang[text] == \"fr\"}",
                     "next": "skipFrench"
                   }
-                ]
+                ],
+                "next": "translate"
               }
             },
             {
@@ -50,20 +51,29 @@
                     "translation": "${text}"
                   }
                 ],
-                "next": "print"
+                "next": "printFrench"
               }
             },
             {
               "translate": {
                 "call": "http.get",
                 "args": {
-                  "url": "http://localhost:1234/translate?q=${text}&target=fr&format=text&source=${textToTranslate[text]}"
+                  "url": "${\"http://localhost:1234/translate?q=\" + text + \"&target=fr&format=text&source=\" + textToTranslate[text]}"
                 },
-                "result": "translation"
+                "result": "translation",
+                "next": "print"
               }
             },
             {
               "print": {
+                "call": "sys.log",
+                "args": {
+                  "text": "${\"original: \" + text + \", translation: \" + translation.body}"
+                }
+              }
+            },
+            {
+              "printFrench": {
                 "call": "sys.log",
                 "args": {
                   "text": "${\"original: \" + text + \", translation: \" + translation}"

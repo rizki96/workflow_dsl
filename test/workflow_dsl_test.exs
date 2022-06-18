@@ -15,7 +15,7 @@ defmodule WorkflowDslTest do
     assert WorkflowDsl.hello() == :world
   end
 
-  @tag :skip
+  #@tag :skip
   test "workflows object translate to command", %{bypass: bypass} do
     Bypass.expect(bypass, "POST", "/storeTemp", fn conn ->
       params = Plug.Conn.fetch_query_params(conn)
@@ -83,6 +83,18 @@ defmodule WorkflowDslTest do
     output = input |> WorkflowDsl.MathExprParser.parse_math()
     Logger.log(:debug, "math expression #{input}: #{inspect output}")
 
+    input = "${var1 + var2 + var3}"
+    output = input |> WorkflowDsl.MathExprParser.parse_math()
+    Logger.log(:debug, "math expression #{input}: #{inspect output}")
+
+    input = "${\"original: \" + text + \", translation: \" + translation.body}"
+    output = input |> WorkflowDsl.MathExprParser.parse_math()
+    Logger.log(:debug, "math expression #{input}: #{inspect output}")
+
+    input = "${\"http://localhost:1234/translate?q=\" + text + \"&target=fr&format=text&source=\" + textToTranslate[text]}"
+    output = input |> WorkflowDsl.MathExprParser.parse_math()
+    Logger.log(:debug, "math expression #{input}: #{inspect output}")
+
     input = "${\"foo\" + \"bar\"}"
     output = input |> WorkflowDsl.MathExprParser.parse_math()
     Logger.log(:debug, "math expression #{input}: #{inspect output}")
@@ -96,7 +108,7 @@ defmodule WorkflowDslTest do
     Logger.log(:debug, "math expression #{input}: #{inspect output}")
   end
 
-  #@tag :skip
+  @tag :skip
   test "expression for logical ops" do
     input = "${textAndSourceLang[text] in allowedSourceLang}"
     output = input |> WorkflowDsl.CondExprParser.parse_cond()

@@ -109,6 +109,9 @@ defmodule WorkflowDsl.Lang do
   def eval(session, {:neg_vars, [val]}) do
     -eval(session, val)
   end
+  def eval(session, {:not, [val]}) do
+    not eval(session, val)
+  end
   def eval(session, {:list, [func, val]}) do
     values = eval(session, val)
     eval(session, {String.to_atom(func), [values]})
@@ -153,6 +156,9 @@ defmodule WorkflowDsl.Lang do
   end
   def eval(session, {:lte, [val0, val1]}) do
     eval(session, val0) <= eval(session, val1)
+  end
+  def eval(session, {:in, [val0, val1]}) do
+    eval(session, val0) in eval(session, val1)
   end
 
   # default function
