@@ -83,7 +83,7 @@ defmodule WorkflowDsl.CondExprParser do
     ])
   )
 
-  bool_val =
+  bool_vals =
     choice([
       string("true"),
       string("false"),
@@ -94,8 +94,22 @@ defmodule WorkflowDsl.CondExprParser do
     ])
     |> tag(:bool)
 
+  defparsecp(:bool_vals,
+    bool_vals
+  )
+
+  negation_conv =
+    string("not")
+    |> ignore(string("("))
+    |> parsec(:vars)
+    |> ignore(string(")"))
+    |> tag(:not)
+
   defparsecp(:return_bool,
-    bool_val
+    choice([
+      bool_vals,
+      negation_conv
+    ])
   )
 
   nat = choice([
@@ -116,6 +130,16 @@ defmodule WorkflowDsl.CondExprParser do
         |> concat(parsec(:cond_and))
         |> ignore(optional(string(" ")))
         |> ignore(ascii_char([?)])),
+        ignore(choice([
+          string("NOT"),
+          string("not")
+          ]))
+        |> ignore(ascii_char([?(]))
+        |> ignore(optional(string(" ")))
+        |> concat(parsec(:cond_and))
+        |> ignore(optional(string(" ")))
+        |> ignore(ascii_char([?)]))
+        |> tag(:not),
         nat
       ]
     )
@@ -198,10 +222,26 @@ defmodule WorkflowDsl.CondExprParser do
                   ]),
                   export_metadata: true
 
-  defcombinatorp :cond_or,
+  defcombinatorp :cond_in,
                   choice(
                   [
                      parsec(:cond_eq)
+                     |> ignore(optional(string(" ")))
+                     |> ignore(choice([
+                      string("IN"),
+                      string("in")
+                      ]))
+                     |> ignore(optional(string(" ")))
+                     |> concat(parsec(:cond_in))
+                     |> tag(:in),
+                     parsec(:cond_eq)
+                  ]),
+                  export_metadata: true
+
+  defcombinatorp :cond_or,
+                  choice(
+                  [
+                     parsec(:cond_in)
                      |> ignore(optional(string(" ")))
                      |> ignore(choice([
                        string("OR"),
@@ -210,7 +250,7 @@ defmodule WorkflowDsl.CondExprParser do
                      |> ignore(optional(string(" ")))
                      |> concat(parsec(:cond_or))
                      |> tag(:or),
-                     parsec(:cond_eq)
+                     parsec(:cond_in)
                   ]),
                   export_metadata: true
 

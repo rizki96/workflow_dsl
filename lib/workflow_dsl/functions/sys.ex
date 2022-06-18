@@ -24,7 +24,7 @@ defmodule WorkflowDsl.Sys do
   end
 
   def string(params) do
-    Logger.log(:debug, "execute :log, params: #{inspect params}")
+    Logger.log(:debug, "execute :string, params: #{inspect params}")
 
     func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :string})
     parameters = Enum.map(params, fn [k,v] ->
@@ -101,5 +101,31 @@ defmodule WorkflowDsl.Sys do
 
     IO.puts(device, output)
     {:ok, output}
+  end
+
+  def log(params) do
+    Logger.log(:debug, "execute :log, params: #{inspect params}")
+    func = Storages.get_last_function_by(%{"module" => __MODULE__, "name" => :log})
+    parameters = Enum.map(params, fn [k,v] ->
+      {k, Lang.eval(func.session, v)}
+    end)
+    |> Enum.into(%{})
+
+    text =
+      with true <- Map.has_key?(parameters, "text") do
+        parameters["text"]
+      else
+        _ -> ""
+      end
+
+    device =
+      with true <- Map.has_key?(parameters, "display_device") do
+        String.to_existing_atom(parameters["display_device"])
+      else
+        _ -> :stdio
+      end
+
+    IO.puts(device, text)
+      {:ok, text}
   end
 end

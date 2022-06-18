@@ -15,7 +15,7 @@ defmodule WorkflowDslTest do
     assert WorkflowDsl.hello() == :world
   end
 
-  #@tag :skip
+  @tag :skip
   test "workflows object translate to command", %{bypass: bypass} do
     Bypass.expect(bypass, "POST", "/storeTemp", fn conn ->
       params = Plug.Conn.fetch_query_params(conn)
@@ -38,12 +38,23 @@ defmodule WorkflowDslTest do
       |> Plug.Conn.prepend_resp_headers([{"content-type", "application/json"}])
       |> Plug.Conn.resp(200, Jason.encode!(%{"SomeField" => rand}))
     end)
+    Bypass.expect(bypass, "GET", "/translate", fn conn ->
+      params = Plug.Conn.fetch_query_params(conn)
+      res =
+      case params.query_params["q"] do
+        "Hello" -> "Bonjour"
+        "Bonjour" -> "Bonjour"
+        _ -> "Au revoir"
+      end
+      conn
+      |> Plug.Conn.resp(200, res)
+    end)
     Bypass.expect(bypass, fn conn ->
       # We don't care about `request_path` or `method` for this test.
       Plug.Conn.resp(conn, 200, "dummy1\ndummy2\ndummy3\n")
     end)
 
-    for n <- 1..10 do
+    for n <- 1..11 do
       rand = Randomizer.randomizer(8)
       output = "./examples/workflow#{n}.json"
         |> WorkflowDsl.JsonExprParser.process(:file)
@@ -85,8 +96,20 @@ defmodule WorkflowDslTest do
     Logger.log(:debug, "math expression #{input}: #{inspect output}")
   end
 
-  @tag :skip
+  #@tag :skip
   test "expression for logical ops" do
+    input = "${textAndSourceLang[text] in allowedSourceLang}"
+    output = input |> WorkflowDsl.CondExprParser.parse_cond()
+    Logger.log(:debug, "cond expression #{input}: #{inspect output}")
+
+    input = "${not(allowedSourceLang)}"
+    output = input |> WorkflowDsl.CondExprParser.parse_cond()
+    Logger.log(:debug, "cond expression #{input}: #{inspect output}")
+
+    input = "${not(textAndSourceLang[text] in allowedSourceLang)}"
+    output = input |> WorkflowDsl.CondExprParser.parse_cond()
+    Logger.log(:debug, "cond expression #{input}: #{inspect output}")
+
     input = "${currentTime.body.dayOfTheWeek == \"Friday\"}"
     output = input |> WorkflowDsl.CondExprParser.parse_cond()
     Logger.log(:debug, "cond expression #{input}: #{inspect output}")

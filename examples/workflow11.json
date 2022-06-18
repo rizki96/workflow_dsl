@@ -47,7 +47,7 @@
               "skipFrench": {
                 "assign": [
                   {
-                    "translation": "text"
+                    "translation": "${text}"
                   }
                 ],
                 "next": "print"
@@ -55,12 +55,9 @@
             },
             {
               "translate": {
-                "call": "googleapis.translate.v2.translations.translate",
+                "call": "http.get",
                 "args": {
-                  "q": "text",
-                  "target": "fr",
-                  "format": "text",
-                  "source": "textToTranslate[text]"
+                  "url": "http://localhost:1234/translate?q=${text}&target=fr&format=text&source=${textToTranslate[text]}"
                 },
                 "result": "translation"
               }
