@@ -10,6 +10,8 @@ defmodule WorkflowDsl.Storages.Function do
     field :args, :binary
     field :result, :binary
     field :executed_at, :integer
+
+    timestamps(inserted_at: :created_at)
   end
 
   @spec changeset(:invalid | %{optional(:__struct__) => none, optional(atom | binary) => any}) :: any
