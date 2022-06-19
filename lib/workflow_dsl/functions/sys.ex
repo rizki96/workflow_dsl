@@ -61,8 +61,8 @@ defmodule WorkflowDsl.Sys do
       end
 
     device =
-      with true <- Map.has_key?(parameters, "display_device") do
-        String.to_existing_atom(parameters["display_device"])
+      with true <- Map.has_key?(parameters, "output_device") do
+        String.to_existing_atom(parameters["output_device"])
       else
         _ -> :stdio
       end
@@ -119,13 +119,13 @@ defmodule WorkflowDsl.Sys do
       end
 
     device =
-      with true <- Map.has_key?(parameters, "display_device") do
-        String.to_existing_atom(parameters["display_device"])
+      with true <- Map.has_key?(parameters, "output_device") do
+        String.to_existing_atom(parameters["output_device"])
       else
         _ -> :stdio
       end
 
     IO.puts(device, text)
-      {:ok, text}
+    {:ok, text}
   end
 end

@@ -53,10 +53,10 @@ defmodule WorkflowDsl.Http do
   end
 
   defp request(:get, %{"url" => url, "headers" => headers} = _params) do
-    Req.request(:get, url, headers: headers)
+    Req.request(:get, URI.encode(url), headers: headers)
   end
   defp request(:get, %{"url" => url} = _params) do
-    Req.request(:get, url)
+    Req.request(:get, URI.encode(url))
   end
   defp request(:get, params) do
     Logger.log(:debug, "get unknown params: #{inspect params}")
@@ -73,14 +73,14 @@ defmodule WorkflowDsl.Http do
       |> Jason.encode!()
     headers =
       headers |> Enum.map(fn [k, v] -> {k, v} end) |> Enum.into(%{})
-    Req.request(:post, url, headers: headers, body: body)
+    Req.request(:post, URI.encode(url), headers: headers, body: body)
   end
   defp request(:post, %{"url" => url, "body" => body} = _params) do
     body =
       body
       |> translate_body(:post)
       |> Jason.encode!()
-    Req.request(:post, url, body: body)
+    Req.request(:post, URI.encode(url), body: body)
   end
   defp request(:post, params) do
     Logger.log(:debug, "post unknown params: #{inspect params}")
@@ -98,14 +98,14 @@ defmodule WorkflowDsl.Http do
       |> Jason.encode!()
     headers =
       headers |> Enum.map(fn [k, v] -> {k, v} end) |> Enum.into(%{})
-    Req.request(:put, url, headers: headers, body: body)
+    Req.request(:put, URI.encode(url), headers: headers, body: body)
   end
   defp request(:put, %{"url" => url, "body" => body} = _params) do
     body =
       body
       |> translate_body(:put)
       |> Jason.encode!()
-    Req.request(:put, url, body: body)
+    Req.request(:put, URI.encode(url), body: body)
   end
   defp request(:put, params) do
     Logger.log(:debug, "put unknown params: #{inspect params}")
@@ -123,14 +123,14 @@ defmodule WorkflowDsl.Http do
       |> Jason.encode!()
     headers =
       headers |> Enum.map(fn [k, v] -> {k, v} end) |> Enum.into(%{})
-    Req.request(:delete, url, headers: headers, body: body)
+    Req.request(:delete, URI.encode(url), headers: headers, body: body)
   end
   defp request(:delete, %{"url" => url, "body" => body} = _params) do
     body =
       body
       |> translate_body(:put)
       |> Jason.encode!()
-    Req.request(:delete, url, body: body)
+    Req.request(:delete, URI.encode(url), body: body)
   end
   defp request(:delete, params) do
     Logger.log(:debug, "delete unknown params: #{inspect params}")

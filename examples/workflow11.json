@@ -6,7 +6,7 @@
             "textAndSourceLang": {
               "Hello": "en",
               "Ciao": "it",
-              "Aufwiedersehen": "de",
+              "Auf wiedersehen": "de",
               "Goodbye": "en",
               "Bonjour": "fr",
               "lkajshflkj": "unknown"
@@ -48,7 +48,7 @@
               "skipFrench": {
                 "assign": [
                   {
-                    "translation": "${text}"
+                    "fr_translation": "${text}"
                   }
                 ],
                 "next": "printFrench"
@@ -69,15 +69,17 @@
                 "call": "sys.log",
                 "args": {
                   "text": "${\"original: \" + text + \", translation: \" + translation.body}"
-                }
+                },
+                "next": "end"
               }
             },
             {
               "printFrench": {
                 "call": "sys.log",
                 "args": {
-                  "text": "${\"original: \" + text + \", translation: \" + translation}"
-                }
+                  "text": "${\"original: \" + text + \", translation: \" + fr_translation}"
+                },
+                "next": "end"
               }
             }
           ]
