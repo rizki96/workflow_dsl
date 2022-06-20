@@ -5,7 +5,7 @@ defmodule WorkflowDsl.Interpreter do
   alias WorkflowDsl.CommandExecutor
   alias WorkflowDsl.Storages
   alias WorkflowDsl.Storages.DelayedExec
-  alias WorkflowDsl.Lang
+  #alias WorkflowDsl.Lang
 
   @default_module_prefix "Elixir.WorkflowDsl"
   @halt_exec ["continue", "break", "end"]
@@ -152,10 +152,13 @@ defmodule WorkflowDsl.Interpreter do
           |> Enum.filter(fn {k, _} -> k == :args end)
           |> Enum.at(0)
 
+          # NOTE: disable eager evaluation, let the function do the evaluation
           args =
           case scripts |> Enum.filter(fn {k, _} -> k == :body end) |> Enum.at(0) do
-            {:body, body} -> eval_args(session, args) ++ eval_args(session, [["body", body]])
-            nil -> eval_args(session, args)
+            {:body, body} -> args ++ [["body", body]]
+              #eval_args(session, args) ++ eval_args(session, [["body", body]])
+            nil -> args
+              #eval_args(session, args)
           end
 
           modfunc = String.split(String.capitalize(name), ".")
@@ -173,22 +176,23 @@ defmodule WorkflowDsl.Interpreter do
     end
   end
 
-  defp eval_args(session, args) do
-    #Logger.log(:debug, "eval_args: #{inspect args}")
-    Enum.map(args, fn arg ->
-      case arg do
-        [k, val] ->
-          if (eval_result = Lang.eval(session, val)) != nil do
-            #Logger.log(:debug, "eval_args eval_result: #{inspect eval_result}")
-            [k, eval_result]
-          else
-            #Logger.log(:debug, "eval_args no eval_result: #{inspect val}")
-            [k, val]
-          end
-        other -> other
-      end
-    end)
-  end
+  # NOTE: disable eager evaluation, let the function do the evaluation
+  # defp eval_args(session, args) do
+  #   #Logger.log(:debug, "eval_args: #{inspect args}")
+  #   Enum.map(args, fn arg ->
+  #     case arg do
+  #       [k, val] ->
+  #         if (eval_result = Lang.eval(session, val)) != nil do
+  #           #Logger.log(:debug, "eval_args eval_result: #{inspect eval_result}")
+  #           [k, eval_result]
+  #         else
+  #           #Logger.log(:debug, "eval_args no eval_result: #{inspect val}")
+  #           [k, val]
+  #         end
+  #       other -> other
+  #     end
+  #   end)
+  # end
 
   defp convert2key(code) do
     case code do
