@@ -5,11 +5,11 @@
           {
             "textAndSourceLang": {
               "Hello": "en",
-              "Auf wiedersehen": "de",
               "Ciao": "it",
               "Bonjour": "fr",
-              "Goodbye": "en",
-              "lkajshflkj": "unknown"
+              "Auf wiedersehen": "de",
+              "lkajshflkj": "unknown",
+              "Goodbye": "en"
             }
           },
           {
