@@ -70,7 +70,7 @@
                 "args": {
                   "text": "${\"original: \" + text + \", translation: \" + translation.body}"
                 },
-                "next": "end"
+                "next": "continue"
               }
             },
             {
@@ -79,7 +79,7 @@
                 "args": {
                   "text": "${\"original: \" + text + \", translation: \" + fr_translation}"
                 },
-                "next": "end"
+                "next": "continue"
               }
             }
           ]
