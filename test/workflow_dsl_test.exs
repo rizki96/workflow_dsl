@@ -64,6 +64,16 @@ defmodule WorkflowDslTest do
   end
 
   @tag :skip
+  test "workflows object translate to command for subworkflow" do
+
+    for n <- 12..14 do
+      output = "./examples/workflow#{n}.json"
+        |> WorkflowDsl.JsonExprParser.process(:file)
+      Logger.log(:debug, "workflow#{n}: #{inspect output}")
+    end
+  end
+
+  @tag :skip
   test "expression for_in parser" do
     input = "${keys(map)}"
     output = input |> WorkflowDsl.LoopExprParser.parse_for_in()

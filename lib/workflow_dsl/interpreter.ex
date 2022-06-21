@@ -10,6 +10,14 @@ defmodule WorkflowDsl.Interpreter do
   @default_module_prefix "Elixir.WorkflowDsl"
   @halt_exec ["continue", "break", "end"]
 
+  # TODO: support for subworkflow
+  # def process(input, _subname, _subargs, _session) when is_list(input) do
+  #   Enum.map(input, fn {_, code} ->
+  #     convert2key(code)
+  #   end)
+  #   |> execute(session)
+  # end
+
   def process(input, session) when is_list(input) do
     Enum.map(input, fn {_, code} ->
       convert2key(code)
@@ -21,21 +29,9 @@ defmodule WorkflowDsl.Interpreter do
 
   end
 
-  def exec_command(session, uid, scripts) do
-    #Logger.log(:debug, "exec_command session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
-    if (delayed = DelayedExec.value(session)) != nil do
-      if delayed == uid do
-        DelayedExec.reset(session, nil)
-        Enum.map(scripts, fn p ->
-          command(session, uid, p)
-        end)
-      end
-    else
-      Enum.map(scripts, fn p ->
-        command(session, uid, p)
-      end)
-    end
-  end
+  # def execute(code, _subname, _subargs, session) do
+
+  # end
 
   def execute(code, session) do
     # clear state
@@ -51,6 +47,22 @@ defmodule WorkflowDsl.Interpreter do
       exec_command(session, k, v)
     end)
     exec_delayed(session)
+  end
+
+  defp exec_command(session, uid, scripts) do
+    #Logger.log(:debug, "exec_command session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
+    if (delayed = DelayedExec.value(session)) != nil do
+      if delayed == uid do
+        DelayedExec.reset(session, nil)
+        Enum.map(scripts, fn p ->
+          command(session, uid, p)
+        end)
+      end
+    else
+      Enum.map(scripts, fn p ->
+        command(session, uid, p)
+      end)
+    end
   end
 
   defp exec_delayed(session) do
