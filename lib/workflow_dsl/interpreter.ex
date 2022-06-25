@@ -10,10 +10,8 @@ defmodule WorkflowDsl.Interpreter do
   @default_module_prefix "Elixir.WorkflowDsl"
   @halt_exec ["continue", "break", "end"]
 
-  # TODO: support for subworkflow
   def process(input, session, subname, subargs) when is_list(input) do
-      #Logger.log(:debug, "convert input: #{inspect input}")
-      Enum.map(input, fn {_, code} ->
+    Enum.map(input, fn {_, code} ->
       convert2key(code)
     end)
     |> execute(session, subname, subargs)
@@ -34,24 +32,23 @@ defmodule WorkflowDsl.Interpreter do
     if Keyword.keyword?(code) do
       execute_sub_workflow(code, session, subname, subargs)
     else
-      #Logger.log(:debug, "execute code: #{inspect code}")
       execute_sequence(code, session)
     end
   end
 
   defp execute_sub_workflow(code, session, subname, subargs) do
-    # TODO: support for subworkflow
+    # WIP: support for subworkflow
     Enum.map(code, fn {k, v} ->
       record_sub_workflow(session, k, v)
     end)
-    code = extract_sub_workflow_code(session, subname, subargs)
-    #Logger.log(:debug, "#{inspect code}")
-    execute_sequence(code, session)
+    extract_sub_workflow_code(session, subname, subargs)
+    |> execute_sequence(session)
     clear_all(session)
-    #{code, session, subargs}
   end
 
   defp execute_sequence(code, session) do
+    #Logger.log(:debug, "execute code sequence: #{inspect code}")
+
     Enum.map(code, fn {k, v} ->
       record_next(session, k, v)
       record_call(session, k, v)
@@ -146,7 +143,7 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp record_sub_workflow(session, uid, scripts) do
-    Logger.log(:debug, "#{session}, #{uid}: #{inspect scripts}")
+    #Logger.log(:debug, "#{session}, #{uid}: #{inspect scripts}")
 
     case Storages.get_function_by(%{"session" => session, "uid" => Atom.to_string(uid)}) do
       nil ->
