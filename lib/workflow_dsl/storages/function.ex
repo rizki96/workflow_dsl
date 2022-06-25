@@ -11,7 +11,7 @@ defmodule WorkflowDsl.Storages.Function do
     field :result, :binary
     field :executed_at, :integer
 
-    timestamps(inserted_at: :created_at)
+    timestamps(inserted_at: :created_at, type: :utc_datetime_usec)
   end
 
   @spec changeset(:invalid | %{optional(:__struct__) => none, optional(atom | binary) => any}) :: any

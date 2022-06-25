@@ -69,6 +69,15 @@ defmodule WorkflowDsl.Storages do
     |> Repo.get_by(session: session, uid: uid)
   end
 
+  def get_first_function_by(%{"session" => session, "module" => module}) do
+    module = :erlang.term_to_binary(module)
+    Function
+    |> where([f], f.session == ^session and f.module == ^module)
+    |> first(:created_at)
+    |> Repo.all()
+    |> Enum.at(0)
+  end
+
   def get_last_function_by(%{"module" => module, "name" => name}) do
     module = :erlang.term_to_binary(module)
     name = :erlang.term_to_binary(name)

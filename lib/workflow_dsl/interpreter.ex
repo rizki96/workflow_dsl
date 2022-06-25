@@ -11,12 +11,13 @@ defmodule WorkflowDsl.Interpreter do
   @halt_exec ["continue", "break", "end"]
 
   # TODO: support for subworkflow
-  # def process(input, _subname, _subargs, _session) when is_list(input) do
-  #   Enum.map(input, fn {_, code} ->
-  #     convert2key(code)
-  #   end)
-  #   |> execute(session)
-  # end
+  def process(input, session, subname, subargs) when is_list(input) do
+      #Logger.log(:debug, "convert input: #{inspect input}")
+      Enum.map(input, fn {_, code} ->
+      convert2key(code)
+    end)
+    |> execute(session, subname, subargs)
+  end
 
   def process(input, session) when is_list(input) do
     Enum.map(input, fn {_, code} ->
@@ -29,15 +30,28 @@ defmodule WorkflowDsl.Interpreter do
 
   end
 
-  # def execute(code, _subname, _subargs, session) do
+  defp execute(code, session, subname \\ "", subargs \\ %{}) do
+    if Keyword.keyword?(code) do
+      execute_sub_workflow(code, session, subname, subargs)
+    else
+      #Logger.log(:debug, "execute code: #{inspect code}")
+      execute_sequence(code, session)
+    end
+  end
 
-  # end
-
-  def execute(code, session) do
-    # clear state
-    Enum.map(code, fn {k, _} ->
-      clear(session, k)
+  defp execute_sub_workflow(code, session, subname, subargs) do
+    # TODO: support for subworkflow
+    Enum.map(code, fn {k, v} ->
+      record_sub_workflow(session, k, v)
     end)
+    code = extract_sub_workflow_code(session, subname, subargs)
+    #Logger.log(:debug, "#{inspect code}")
+    execute_sequence(code, session)
+    clear_all(session)
+    #{code, session, subargs}
+  end
+
+  defp execute_sequence(code, session) do
     Enum.map(code, fn {k, v} ->
       record_next(session, k, v)
       record_call(session, k, v)
@@ -47,6 +61,11 @@ defmodule WorkflowDsl.Interpreter do
       exec_command(session, k, v)
     end)
     exec_delayed(session)
+    # clear state
+    Enum.map(code, fn {k, _} ->
+      clear(session, k)
+    end)
+    clear_all(session)
   end
 
   defp exec_command(session, uid, scripts) do
@@ -90,7 +109,95 @@ defmodule WorkflowDsl.Interpreter do
     end
   end
 
+  defp extract_sub_workflow_code(session, uid, subargs \\ %{}) do
+    module_name = String.to_existing_atom("#{@default_module_prefix}.SubWorkflow")
+    func =
+      case uid do
+        "" -> Storages.get_first_function_by(%{"session" => session, "module" => module_name})
+        other -> Storages.get_function_by(%{"session" => session, "uid" => other})
+      end
+    args =
+      :maps.filter(fn k,_ ->
+        Map.has_key?(:erlang.binary_to_term(func.args), k)
+      end, subargs)
+    default_args =
+      :maps.filter(fn k,v ->
+        v != nil && not Map.has_key?(args, k)
+      end, :erlang.binary_to_term(func.args))
+    args =
+      Map.merge(args, default_args)
+      |> Enum.map(fn {k, v} ->
+        [[k, v]]
+      end)
+    steps =
+      [:erlang.binary_to_term(func.name)]
+      |> Enum.map(fn [k,v] -> {String.to_existing_atom(k),v} end)
+    cond do
+      length(args) == 0 -> [{func.uid, steps}]
+      true -> [{func.uid, [params: args] ++ steps}]
+    end
+  end
+
+  defp clear_all(session) do
+    funcs = Storages.list_functions_by(%{"session" => session})
+    Enum.each(funcs, fn f ->
+      Storages.delete_function(f)
+    end)
+  end
+
+  defp record_sub_workflow(session, uid, scripts) do
+    Logger.log(:debug, "#{session}, #{uid}: #{inspect scripts}")
+
+    case Storages.get_function_by(%{"session" => session, "uid" => Atom.to_string(uid)}) do
+      nil ->
+        {:params, args} = case scripts
+        |> Enum.filter(fn {k, _} -> k == :params end)
+        |> Enum.at(0) do
+          nil -> {:params, %{}}
+          other -> other
+        end
+
+        args =
+          args
+          |> Enum.map(fn it -> String.split(it, ":") |> Enum.map(fn i -> String.trim(i) end) end)
+          |> Enum.map(fn it ->
+            case it do
+              [k] -> {k, nil}
+              [k,v] -> {k, v}
+              _ -> nil
+            end
+          end)
+          |> Enum.filter(fn it -> it != nil end)
+          |> Enum.into(%{})
+
+        #Logger.log(:debug, "#{inspect args}")
+
+        {:steps, steps} =
+          case scripts
+          |> Enum.filter(fn {k, _} -> k == :steps end)
+          |> Enum.at(0) do
+            nil -> {:steps, nil}
+            other -> other
+          end
+
+        #Logger.log(:debug, "#{inspect steps}")
+
+        module_name = String.to_existing_atom("#{@default_module_prefix}.SubWorkflow")
+
+        Storages.create_function(%{
+          "session" => session,
+          "uid" => Atom.to_string(uid),
+          "args" => :erlang.term_to_binary(args),
+          "module" => :erlang.term_to_binary(module_name),
+          "name" => :erlang.term_to_binary(["steps", steps])
+        })
+      _ -> nil
+    end
+  end
+
   defp record_next(session, uid, scripts) do
+    #Logger.log(:debug, "#{session}, #{uid}: #{inspect scripts}")
+
     # check for next, then add to the storages
     if length(Keyword.take(scripts, [:next])) > 0 do
       {:next, nextval} = scripts
@@ -170,20 +277,48 @@ defmodule WorkflowDsl.Interpreter do
             nil -> args
           end
 
-          modfunc = String.split(String.capitalize(name), ".")
-          module_name = String.to_existing_atom("#{@default_module_prefix}.#{Enum.at(modfunc,0)}")
+          sub_workflow_func = Storages.get_function_by(%{"session" => session, "uid" => name})
+          if sub_workflow_func != nil and :erlang.binary_to_term(sub_workflow_func.module) == WorkflowDsl.SubWorkflow do
+            module_name = String.to_existing_atom("#{@default_module_prefix}.SubWorkflow")
+            args = args
+              |> Enum.map(fn it ->
+                case it do
+                  [k] -> {k, nil}
+                  [k,v] -> {k, v}
+                  _ -> nil
+                end
+              end)
+              |> Enum.filter(fn it -> it != nil end)
+              |> Enum.into(%{})
 
-          Storages.create_function(%{
-            "session" => session,
-            "uid" => uid,
-            "args" => :erlang.term_to_binary(args),
-            "module" => :erlang.term_to_binary(module_name),
-            "name" => :erlang.term_to_binary(String.to_atom(Enum.at(modfunc, 1)))
-          })
+            Storages.create_function(%{
+              "session" => session,
+              "uid" => uid,
+              "args" => :erlang.term_to_binary(args),
+              "module" => :erlang.term_to_binary(module_name),
+              "name" => sub_workflow_func.name
+            })
+          else
+            modfunc = String.split(String.capitalize(name), ".")
+            module_name = String.to_existing_atom("#{@default_module_prefix}.#{Enum.at(modfunc,0)}")
+
+            Storages.create_function(%{
+              "session" => session,
+              "uid" => uid,
+              "args" => :erlang.term_to_binary(args),
+              "module" => :erlang.term_to_binary(module_name),
+              "name" => :erlang.term_to_binary(String.to_atom(Enum.at(modfunc, 1)))
+            })
+          end
+
         _ -> nil
       end
     end
   end
+
+  # defp run_sub_workflow() do
+
+  # end
 
   defp convert2key(code) do
     case code do
@@ -223,6 +358,10 @@ defmodule WorkflowDsl.Interpreter do
     Logger.log(:debug, "assign: #{inspect params}, session: #{inspect session}, uid: #{inspect uid}")
   end
 
+  defp command(session, uid, {:params, params}) do
+    command(session, uid, {:assign, params})
+  end
+
   defp command(session, uid, {:for, params}) do
     {varname, inval, idxvar, stepvar} =
     case params do
@@ -258,11 +397,19 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp command(session, uid, {:call, params}) do
-    CommandExecutor.maybe_execute_function(session, uid)
+    # check for sub_workflow or sequence
+    func = Storages.get_function_by(%{"session" => session, "uid" => uid})
+    if (func != nil) and (:erlang.binary_to_term(func.module) == Elixir.WorkflowDsl.SubWorkflow) do
+      extract_sub_workflow_code(session, uid)
+      |> execute_sequence(session)
+    else
+      CommandExecutor.maybe_execute_function(session, uid)
+    end
     Logger.log(:debug, "call: #{inspect params}, session: #{inspect session}, uid: #{uid}")
   end
 
   defp command(session, uid, {:args, params}) do
+    # check for sub_workflow or sequence
     if (func = Storages.get_function_by(%{"session" => session, "uid" => uid})) != nil do
       if is_nil(func.executed_at), do: CommandExecutor.maybe_execute_function(session, uid)
     end
@@ -306,6 +453,10 @@ defmodule WorkflowDsl.Interpreter do
     end
   end
 
+  defp command(session, _uid, {:steps, params}) do
+    CommandExecutor.execute_steps(session, params)
+  end
+
   defp command(_session, _uid, {:body, _params}) do
     # ignore body command
     #CommandExecutor.execute_body(session, uid, params)
@@ -316,3 +467,6 @@ defmodule WorkflowDsl.Interpreter do
     Logger.log(:debug, "unknown command, session: #{inspect session}, uid: #{inspect uid}, input: #{inspect input}")
   end
 end
+
+# to fill the SubWorkflow module registration
+defmodule WorkflowDsl.SubWorkflow, do: nil

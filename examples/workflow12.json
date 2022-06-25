@@ -8,7 +8,7 @@
       "steps": [
         {
           "concatenate": {
-            "return": "${Street + \", \" + ZipCode + \", \" + Country}"
+            "return": "${string(Street) + \", \" + string(ZipCode) + \", \" + Country}"
           }
         }
       ]
