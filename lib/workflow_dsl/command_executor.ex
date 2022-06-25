@@ -204,12 +204,13 @@ defmodule WorkflowDsl.CommandExecutor do
     end
 
     if Storages.get_oldest_next_exec(%{"session" => session, "is_executed" => false}) != nil do
-      timestamp = :os.system_time(:microsecond)
+      # timestamp = :os.system_time(:microsecond)
       all_next = Storages.list_next_execs(%{"session" => session})
       Enum.map(all_next, fn it ->
         Storages.update_next_exec(it, %{
-          "is_executed" => true,
-          "updated_at" => timestamp})
+          "is_executed" => true
+          # "updated_at" => timestamp
+          })
       end)
       val
     end
@@ -228,10 +229,11 @@ defmodule WorkflowDsl.CommandExecutor do
         end
 
         if (next = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
-            timestamp = :os.system_time(:microsecond)
+            # timestamp = :os.system_time(:microsecond)
             Storages.update_next_exec(next, %{
-              "is_executed" => is_executed,
-              "updated_at" => timestamp})
+              "is_executed" => is_executed
+              # "updated_at" => timestamp
+              })
         end
       end
     end

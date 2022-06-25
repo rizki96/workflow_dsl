@@ -9,8 +9,10 @@ defmodule WorkflowDsl.Storages.NextExec do
     field :triggered_script, :binary
     field :is_executed, :boolean
     field :has_cond_value, :boolean
-    field :inserted_at, :integer
-    field :updated_at, :integer
+    # field :inserted_at, :integer
+    # field :updated_at, :integer
+
+    timestamps(type: :utc_datetime_usec)
   end
 
   @spec changeset(:invalid | %{optional(:__struct__) => none, optional(atom | binary) => any}) :: any

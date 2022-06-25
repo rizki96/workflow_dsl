@@ -172,13 +172,16 @@ defmodule WorkflowDsl.Storages do
 
   def get_oldest_next_exec(%{"session" => session, "is_executed" => executed}) do
     NextExec
-    |> where([ne], ne.session == ^session and ne.is_executed == ^executed and not is_nil(ne.inserted_at))
+    #|> where([ne], ne.session == ^session and ne.is_executed == ^executed and not is_nil(ne.inserted_at))
+    |> where([ne], ne.session == ^session and ne.is_executed == ^executed)
     |> Repo.all()
     |> Enum.reduce([], fn it, acc ->
       case acc do
         [] -> [it]
         [l] ->
-          if (l.inserted_at <= it.inserted_at), do: [l], else: [it]
+          if (DateTime.compare(l.inserted_at, it.inserted_at) == :lt or
+            DateTime.compare(l.inserted_at, it.inserted_at) == :eq),
+            do: [l], else: [it]
       end
     end)
     |> Enum.at(0)
@@ -192,7 +195,9 @@ defmodule WorkflowDsl.Storages do
       case acc do
         [] -> [it]
         [l] ->
-          if (l.inserted_at <= it.inserted_at), do: [l], else: [it]
+          if (DateTime.compare(l.inserted_at, it.inserted_at) == :lt or
+            DateTime.compare(l.inserted_at, it.inserted_at) == :eq),
+            do: [l], else: [it]
       end
     end)
     |> Enum.at(0)
@@ -206,7 +211,9 @@ defmodule WorkflowDsl.Storages do
       case acc do
         [] -> [it]
         [l] ->
-          if (l.inserted_at >= it.inserted_at), do: [l], else: [it]
+          if (DateTime.compare(l.inserted_at, it.inserted_at) == :gt or
+            DateTime.compare(l.inserted_at, it.inserted_at) == :eq),
+            do: [l], else: [it]
       end
     end)
     |> Enum.at(0)

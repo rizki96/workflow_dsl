@@ -12,7 +12,7 @@ defmodule WorkflowDsl.Repo.Migrations.AddFunctionsTable do
       add :result, :binary
       add :executed_at, :integer
 
-      timestamps(inserted_at: :created_at)
+      timestamps(inserted_at: :created_at, type: :utc_datetime_usec)
     end
   end
 end
