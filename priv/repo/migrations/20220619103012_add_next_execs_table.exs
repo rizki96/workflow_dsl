@@ -10,8 +10,6 @@ defmodule WorkflowDsl.Repo.Migrations.AddNextExecsTable do
       add :triggered_script, :binary
       add :is_executed, :boolean
       add :has_cond_value, :boolean
-      # add :inserted_at, :integer
-      # add :updated_at, :integer
 
       timestamps(type: :utc_datetime_usec)
     end

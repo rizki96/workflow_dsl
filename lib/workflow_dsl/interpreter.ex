@@ -202,12 +202,10 @@ defmodule WorkflowDsl.Interpreter do
       |> Enum.at(0)
 
       #Logger.log(:debug, "record_next session: #{session}, uid: #{uid}, scripts: #{inspect scripts}")
-      # timestamp = :os.system_time(:microsecond)
       if (next_exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
         Storages.update_next_exec(next_exec, %{
           "next_uid" => nextval,
           "triggered_script" => :erlang.term_to_binary(scripts)
-          # "updated_at" => timestamp
         })
       else
         Storages.create_next_exec(%{
@@ -217,28 +215,21 @@ defmodule WorkflowDsl.Interpreter do
           "is_executed" => false,
           "triggered_script" => :erlang.term_to_binary(scripts),
           "has_cond_value" => false
-          # "inserted_at" => timestamp,
-          # "updated_at" => timestamp
         })
       end
 
       if nextval not in @halt_exec and Storages.get_next_exec_by(%{"session" => session, "uid" => nextval}) == nil do
-        # timestamp = :os.system_time(:microsecond)
         Storages.create_next_exec(%{
           "session" => session,
           "uid" => nextval,
           "is_executed" => false,
           "has_cond_value" => false
-          # "inserted_at" => timestamp,
-          # "updated_at" => timestamp
         })
       end
     else
-      # timestamp = :os.system_time(:microsecond)
       if (next_exec = Storages.get_next_exec_by(%{"session" => session, "uid" => uid})) != nil do
         Storages.update_next_exec(next_exec, %{
           "triggered_script" => :erlang.term_to_binary(scripts)
-          # "updated_at" => timestamp
         })
       else
         Storages.create_next_exec(%{
@@ -247,8 +238,6 @@ defmodule WorkflowDsl.Interpreter do
           "is_executed" => false,
           "triggered_script" => :erlang.term_to_binary(scripts),
           "has_cond_value" => false
-          # "inserted_at" => timestamp,
-          # "updated_at" => timestamp
         })
       end
     end
