@@ -321,6 +321,8 @@ defmodule WorkflowDsl.CommandExecutor do
             {:error, err} ->
               if is_struct(err), do: Map.from_struct(err), else: err
 
+            [res] -> extract_result(res)
+
             res ->
               if is_struct(res), do: Map.from_struct(res), else: res
           end
@@ -353,5 +355,13 @@ defmodule WorkflowDsl.CommandExecutor do
     eval_res = Lang.eval(session, result)
     # Logger.log(:debug, "#{inspect eval_res}")
     eval_res
+  end
+
+  defp extract_result(res) do
+    case res do
+      [:ok, res] -> extract_result(res)
+      [res] -> extract_result(res)
+      res -> res
+    end
   end
 end
