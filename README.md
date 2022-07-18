@@ -28,8 +28,8 @@ Domain specific language based on [`Google Cloud Workflows`](https://cloud.googl
 - [x] return
 - [x] call, args, result, body
 - [x] next
+- [x] subworkflows
 - [ ] try, retry, except
-- [ ] subworkflows
 - [ ] YAML input format
 - [ ] error messages
 
