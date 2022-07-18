@@ -5,6 +5,7 @@ defmodule WorkflowDsl.Repo.Migrations.AddFunctionsTable do
     create table(:functions, primary_key: false) do
       add :function_id, :serial, primary_key: true
       add :uid, :string
+      add :parent_uid, :string, default: ""
       add :session, :string
       add :module, :binary
       add :name, :binary

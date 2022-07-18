@@ -27,7 +27,7 @@ defmodule WorkflowDsl.MixProject do
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
       {:jason, "~> 1.0"},
       {:etso, "~> 1.0"},
-      #{:ecto_sqlite3, "~> 0.7.5"},
+      # {:ecto_sqlite3, "~> 0.7.5"},
       {:nimble_parsec, "~> 1.0"},
       {:nimble_csv, "~> 1.2"},
       {:req, git: "https://github.com/wojtekmach/req.git"},

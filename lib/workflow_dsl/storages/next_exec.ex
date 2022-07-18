@@ -4,8 +4,9 @@ defmodule WorkflowDsl.Storages.NextExec do
 
   schema "next_execs" do
     field :uid, :string
-    field :session, :string
     field :next_uid, :string
+    field :parent_uid, :string, default: ""
+    field :session, :string
     field :triggered_script, :binary
     field :is_executed, :boolean
     field :has_cond_value, :boolean

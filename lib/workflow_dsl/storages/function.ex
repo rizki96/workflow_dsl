@@ -4,6 +4,7 @@ defmodule WorkflowDsl.Storages.Function do
 
   schema "functions" do
     field :uid, :string
+    field :parent_uid, :string, default: ""
     field :session, :string
     field :module, :binary
     field :name, :binary

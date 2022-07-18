@@ -64,6 +64,11 @@ defmodule WorkflowDsl.Storages do
     |> Repo.get!(id)
   end
 
+  def get_function_by(%{"session" => session, "uid" => uid, "parent_uid" => parent_uid}) do
+    Function
+    |> Repo.get_by(session: session, uid: uid, parent_uid: parent_uid)
+  end
+
   def get_function_by(%{"session" => session, "uid" => uid}) do
     Function
     |> Repo.get_by(session: session, uid: uid)
@@ -137,9 +142,15 @@ defmodule WorkflowDsl.Storages do
     |> Repo.all()
   end
 
-  def list_next_execs(%{"session" => session}) do
+  def list_next_execs_by(%{"session" => session}) do
     NextExec
     |> where([ne], ne.session == ^session)
+    |> Repo.all()
+  end
+
+  def list_next_execs_by(%{"session" => session, "parent_uid" => parent_uid}) do
+    NextExec
+    |> where([ne], ne.session == ^session and ne.parent_uid == ^parent_uid)
     |> Repo.all()
   end
 
@@ -158,6 +169,11 @@ defmodule WorkflowDsl.Storages do
   def get_next_exec_by(%{"session" => session, "uid" => uid, "is_executed" => executed}) do
     NextExec
     |> Repo.get_by([session: session, uid: uid, is_executed: executed])
+  end
+
+  def get_next_exec_by(%{"session" => session, "uid" => uid, "parent_uid" => parent_uid}) do
+    NextExec
+    |> Repo.get_by([session: session, uid: uid, parent_uid: parent_uid])
   end
 
   def get_next_exec_by(%{"session" => session, "uid" => uid}) do

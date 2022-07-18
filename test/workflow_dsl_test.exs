@@ -63,7 +63,7 @@ defmodule WorkflowDslTest do
     end
   end
 
-  #@tag :skip
+  # @tag :skip
   test "workflows object translate to command for subworkflow", %{bypass: bypass} do
     Bypass.expect(bypass, "GET", "/translate", fn conn ->
       params = Plug.Conn.fetch_query_params(conn)
@@ -83,7 +83,7 @@ defmodule WorkflowDslTest do
       %{},
       %{}}
     default_subname = ""
-    for n <- 11..13 do
+    for n <- 11..14 do
       rand = Randomizer.randomizer(8)
       output = "./examples/workflow#{n}.json"
         |> WorkflowDsl.JsonExprParser.process(:file)
@@ -212,5 +212,6 @@ defmodule WorkflowDslTest do
     rand = Randomizer.randomizer(8)
     output = WorkflowDsl.Lang.eval(rand, result)
     Logger.log(:debug, "result for math op #{input}: #{inspect output}")
+
   end
 end
