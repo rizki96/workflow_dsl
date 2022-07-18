@@ -41,7 +41,7 @@ defmodule WorkflowDsl.Interpreter do
     else
       execute_sequence(code, session, subname)
     end
-    #Logger.log(:debug, "execute result: #{inspect(result)}")
+    # Logger.log(:debug, "execute result: #{inspect(result)}")
     result
   end
 
@@ -56,7 +56,7 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp execute_sequence(code, session, subname, clear_state \\ true) do
-    Logger.log(:debug, "execute_sequence: #{inspect(code)}")
+    # Logger.log(:debug, "execute_sequence: #{inspect(code)}")
 
     Enum.map(code, fn {k, v} ->
       record_next(session, k, v, subname)

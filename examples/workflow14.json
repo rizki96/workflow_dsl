@@ -23,7 +23,7 @@
         },
         {
           "return_message": {
-            "return": "${output + output2}"
+            "return": "${output + \" \" + output2}"
           }
         }
       ]
