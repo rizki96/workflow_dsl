@@ -15,7 +15,7 @@ defmodule WorkflowDslTest do
     assert WorkflowDsl.hello() == :world
   end
 
-  @tag :skip
+  # @tag :skip
   test "workflows object translate to command", %{bypass: bypass} do
     Bypass.expect(bypass, "POST", "/storeTemp", fn conn ->
       params = Plug.Conn.fetch_query_params(conn)
