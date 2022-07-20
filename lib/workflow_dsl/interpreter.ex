@@ -69,6 +69,8 @@ defmodule WorkflowDsl.Interpreter do
         exec_command(session, k, v)
       end)
 
+    delayed_return = exec_delayed(session)
+
     if clear_state do
       # clear state
       Enum.map(code, fn {k, _} ->
@@ -78,7 +80,6 @@ defmodule WorkflowDsl.Interpreter do
       # clear_all(session)
     end
 
-    delayed_return = exec_delayed(session)
     if delayed_return != nil, do: delayed_return, else: return
   end
 
@@ -114,7 +115,7 @@ defmodule WorkflowDsl.Interpreter do
   end
 
   defp clear(session, uid, subname) do
-    #Logger.log(:debug, "clear session: #{inspect session}, uid: #{inspect uid}, subname: #{inspect subname}")
+    # Logger.log(:debug, "clear session: #{inspect session}, uid: #{inspect uid}, subname: #{inspect subname}")
     DelayedExec.reset(session, nil)
 
     if subname != nil do
@@ -214,7 +215,7 @@ defmodule WorkflowDsl.Interpreter do
   # end
 
   defp record_sub_workflow(session, uid, scripts) do
-    #Logger.log(:debug, "#{session}, #{uid}: #{inspect scripts}")
+    # Logger.log(:debug, "#{session}, #{uid}: #{inspect scripts}")
 
     case Storages.get_function_by(%{"session" => session, "uid" => Atom.to_string(uid)}) do
       nil ->
