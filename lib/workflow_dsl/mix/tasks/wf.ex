@@ -22,7 +22,7 @@ defmodule Mix.Tasks.Wf do
           {:ok, _} = Application.ensure_all_started(:workflow_dsl)
           rand = Randomizer.randomizer(8)
           if String.starts_with?(input, ["http://", "https://"]) do
-            {:ok, content} = Req.request(:get, input)
+            {:ok, content} = Req.request(method: :get, url: input)
             content.body
             |> WorkflowDsl.JsonExprParser.process(:stream)
             |> WorkflowDsl.Interpreter.process(rand)
