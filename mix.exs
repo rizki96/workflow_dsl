@@ -30,7 +30,7 @@ defmodule WorkflowDsl.MixProject do
       # {:ecto_sqlite3, "~> 0.7.5"},
       {:nimble_parsec, "~> 1.0"},
       {:nimble_csv, "~> 1.2"},
-      {:req, git: "https://github.com/wojtekmach/req.git"},
+      {:req, "~> 0.3.0"},
       {:bypass, "~> 2.1", only: :test},
     ]
   end

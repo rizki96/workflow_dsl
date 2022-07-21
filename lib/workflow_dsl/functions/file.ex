@@ -56,7 +56,7 @@ defmodule WorkflowDsl.File do
       true <- Map.has_key?(parameters, "output_path"),
       :ok <- File.mkdir_p(Path.dirname(parameters["output_path"])) do
         if String.starts_with?(parameters["input_url"], ["http://", "https://"]) do
-          {:ok, content} = Req.request(:get, parameters["input_url"])
+          {:ok, content} = Req.request(method: :get, url: parameters["input_url"])
           File.write(parameters["output_path"], content.body, options)
         end
     end
@@ -91,7 +91,7 @@ defmodule WorkflowDsl.File do
 
     with true <- Map.has_key?(parameters, "input_url") do
       if String.starts_with?(parameters["input_url"], ["http://", "https://"]) do
-        {:ok, content} = Req.request(:get, parameters["input_url"])
+        {:ok, content} = Req.request(method: :get, url: parameters["input_url"])
         read_as.(content.body)
       end
     else
