@@ -58,6 +58,13 @@ defmodule Mix.Tasks.Wf do
           run_process(input) |> clear_session()
           IO.puts("\n#{input} is executed\n")
 
+        {[], [input], _} ->
+          Logger.configure(level: :info)
+          {:ok, _} = Application.ensure_all_started(:workflow_dsl)
+
+          run_process(input) |> clear_session()
+          IO.puts("\n#{input} is executed\n")
+
         _ ->
           IO.puts("\nRunning the JSON workflow DSL
 \nCommand: mix wf.run <script file path / URL> [--verbose] [--execute subworkflow-name] [--json-args json-body]
