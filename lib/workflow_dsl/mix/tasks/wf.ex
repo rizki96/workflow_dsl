@@ -82,11 +82,11 @@ defmodule Mix.Tasks.Wf do
         {:ok, content} = Req.request(method: :get, url: input)
         content.body
         |> WorkflowDsl.JsonExprParser.process(:stream)
-        |> WorkflowDsl.Interpreter.process(rand, subworkflow_name, args_body)
+        |> WorkflowDsl.Interpreter.process(rand, subworkflow_name, args_body, true)
       else
         input
         |> WorkflowDsl.JsonExprParser.process(:file)
-        |> WorkflowDsl.Interpreter.process(rand, subworkflow_name, args_body)
+        |> WorkflowDsl.Interpreter.process(rand, subworkflow_name, args_body, true)
       end
       rand
     end

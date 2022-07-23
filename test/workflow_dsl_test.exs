@@ -87,7 +87,7 @@ defmodule WorkflowDslTest do
       rand = Randomizer.randomizer(8)
       output = "./examples/workflow#{n}.json"
         |> WorkflowDsl.JsonExprParser.process(:file)
-        |> WorkflowDsl.Interpreter.process(rand, default_subname, elem(subargs, n - 11))
+        |> WorkflowDsl.Interpreter.process(rand, default_subname, elem(subargs, n - 11), true)
       Logger.log(:debug, "workflow#{n}: #{inspect output}")
     end
   end

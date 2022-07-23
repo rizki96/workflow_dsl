@@ -135,7 +135,7 @@ defmodule WorkflowDsl.CommandExecutor do
   def execute_steps(session, steps, parent_uid) do
     steps
     |> JsonExprParser.convert2tuple()
-    |> Interpreter.process(session, parent_uid)
+    |> Interpreter.process(session, parent_uid, false)
   end
 
   def execute_steps(session, steps) do

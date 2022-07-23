@@ -9,18 +9,18 @@ defmodule WorkflowDsl.Interpreter do
   @default_module_prefix "Elixir.WorkflowDsl"
   @halt_exec ["continue", "break", "end"]
 
-  def process(input, session, subname, subargs) when is_list(input) do
+  def process(input, session, subname, subargs, initial_run?) when is_list(input) do
     Enum.map(input, fn {_, code} ->
       convert2key(code)
     end)
-    |> execute(session, subname, subargs)
+    |> execute(session, subname, subargs, initial_run?)
   end
 
-  def process(input, session, subname) when is_list(input) do
+  def process(input, session, subname, initial_run?) when is_list(input) do
     Enum.map(input, fn {_, code} ->
       convert2key(code)
     end)
-    |> execute(session, subname)
+    |> execute(session, subname, initial_run?)
   end
 
   def process(input, session) when is_list(input) do
@@ -34,11 +34,12 @@ defmodule WorkflowDsl.Interpreter do
     Logger.log(:error, "Unknown process call")
   end
 
-  defp execute(code, session, subname \\ "", subargs \\ %{}) do
+  defp execute(code, session, subname \\ "", subargs \\ %{}, initial_run? \\ false) do
     result =
     if Keyword.keyword?(code) do
       execute_sub_workflow(code, session, subname, subargs)
     else
+      subname = if initial_run?, do: "", else: subname
       execute_sequence(code, session, subname)
     end
     # Logger.log(:debug, "execute result: #{inspect(result)}")
