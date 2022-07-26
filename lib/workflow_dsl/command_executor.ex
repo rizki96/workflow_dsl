@@ -12,7 +12,7 @@ defmodule WorkflowDsl.CommandExecutor do
   require Logger
 
   def execute_for_in(session, init_val, input, steps, index \\ "index") do
-    # Logger.log(:debug, "input: #{inspect input}, init_val: #{inspect init_val}, steps: #{inspect steps}, index: #{inspect index}")
+    Logger.log(:debug, "input: #{inspect input}, init_val: #{inspect init_val}, steps: #{inspect steps}, index: #{inspect index}")
     {:ok, result, _, _, _, _} = LoopExprParser.parse_for_in(input)
 
     Enum.map(result, fn res ->
