@@ -42,7 +42,6 @@ defmodule WorkflowDsl.Interpreter do
       subname = if initial_run?, do: "", else: subname
       execute_sequence(code, session, subname)
     end
-    # Logger.log(:debug, "execute result: #{inspect(result)}")
     result
   end
 
@@ -620,12 +619,15 @@ defmodule WorkflowDsl.Interpreter do
     Logger.log(:debug, "steps: #{inspect(params)}, parent_uid: #{inspect(parent_uid)}")
     result = CommandExecutor.execute_steps(session, params, parent_uid)
     #Logger.log(:debug, "steps result: #{inspect(result)}, parent_uid: #{inspect(parent_uid)}")
-    result
+    # return only the last element
+    Enum.at(result, -1)
   end
 
   defp command(session, _uid, {:steps, params}) do
     Logger.log(:debug, "steps: #{inspect(params)}")
-    CommandExecutor.execute_steps(session, params)
+    result = CommandExecutor.execute_steps(session, params)
+    # return only the last element
+    Enum.at(result, -1)
   end
 
   defp command(_session, _uid, {:body, _params}) do
