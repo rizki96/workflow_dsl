@@ -12,8 +12,9 @@ defmodule WorkflowDsl.CommandExecutor do
   require Logger
 
   def execute_for_in(session, init_val, input, steps, index \\ "index") do
-    Logger.log(:debug, "input: #{inspect input}, init_val: #{inspect init_val}, steps: #{inspect steps}, index: #{inspect index}")
+    # Logger.log(:debug, "input: #{inspect input}, init_val: #{inspect init_val}, steps: #{inspect steps}, index: #{inspect index}")
     {:ok, result, _, _, _, _} = LoopExprParser.parse_for_in(input)
+    # Logger.log(:debug, "result: #{inspect result}")
 
     Enum.map(result, fn res ->
       Lang.eval(session, res)
@@ -199,45 +200,25 @@ defmodule WorkflowDsl.CommandExecutor do
                 end
 
               other ->
-                cond do
-                  is_nil(other[:values]) ->
-                    if not is_nil(name) do
-                      {:name, varname} = Enum.at(acc, 0)
-                      varvalue = Storages.get_var_by(%{"session" => session, "name" => varname})
-
-                      Storages.update_var(varvalue, %{
-                        "value" => :erlang.term_to_binary([[name, result]])
-                      })
-
-                      other ++ [{:values, [[name, result]]}]
+                if not is_nil(name) do
+                  {:name, varname} = Enum.at(acc, 0)
+                  varvalue = Storages.get_var_by(%{"session" => session, "name" => varname})
+                  name =
+                    if (keyname = Storages.get_var_by(%{"session" => session, "name" => name})) != nil
+                      and ("#{varname}[#{name}]" == valname),
+                      do: :erlang.binary_to_term(keyname.value), else: name
+                  vals =
+                    cond do
+                      is_nil(other[:values]) -> [[name, result]]
+                      is_list(other[:values]) -> Enum.filter(other[:values], fn [k, _] -> k != name end) ++ [[name, result]]
+                      true -> Enum.filter(Lang.eval(session, it), fn [k, _] -> k != name end) ++ [[name, result]]
                     end
 
-                  is_list(other[:values]) ->
-                    if not is_nil(name) do
-                      # Logger.log(:debug, "acc: #{inspect acc}")
-                      {:name, varname} = Enum.at(acc, 0)
-                      varvalue = Storages.get_var_by(%{"session" => session, "name" => varname})
-                      vals = Enum.filter(other[:values], fn [k, _] -> k != name end)
+                  Storages.update_var(varvalue, %{
+                    "value" => :erlang.term_to_binary(vals)
+                  })
 
-                      Storages.update_var(varvalue, %{
-                        "value" => :erlang.term_to_binary(vals ++ [[name, result]])
-                      })
-
-                      other ++ [{:values, vals ++ [[name, result]]}]
-                    end
-
-                  true ->
-                    if not is_nil(name) do
-                      {:name, varname} = Enum.at(acc, 0)
-                      varvalue = Storages.get_var_by(%{"session" => session, "name" => varname})
-                      vals = Enum.filter(Lang.eval(session, it), fn [k, _] -> k != name end)
-
-                      Storages.update_var(varvalue, %{
-                        "value" => :erlang.term_to_binary(vals ++ [[name, result]])
-                      })
-
-                      other ++ [{:values, vals ++ [[name, result]]}]
-                    end
+                  other ++ [{:values, vals}]
                 end
             end
           end)

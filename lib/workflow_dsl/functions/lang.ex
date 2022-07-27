@@ -101,9 +101,12 @@ defmodule WorkflowDsl.Lang do
   def eval(_session, {:bool, [val]}), do: String.to_existing_atom(String.downcase(val))
   def eval(session, {:vars, [val]}) do
     var = Storages.get_var_by(%{"session" => session, "name" => val})
+
     case var do
       nil -> nil
-      v -> :erlang.binary_to_term(v.value)
+      v ->
+        # Logger.log(:debug, "session: #{inspect session}, name: #{inspect val}, var: #{inspect :erlang.binary_to_term(v.value)}")
+        :erlang.binary_to_term(v.value)
     end
   end
   def eval(session, {:neg_vars, [val]}) do

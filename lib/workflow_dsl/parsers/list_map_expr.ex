@@ -3,6 +3,7 @@ defmodule WorkflowDsl.ListMapExprParser do
 
   vars =
     utf8_string([?a..?z, ?A..?Z, ?_], min: 1)
+    # |> optional(utf8_string([?a..?z, ?A..?Z, ?0..?9, ?_, ?., ?[, ?], ?"], min: 0))
     |> optional(utf8_string([?a..?z, ?A..?Z, ?0..?9, ?_], min: 0))
     |> tag(:vars)
 

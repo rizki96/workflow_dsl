@@ -135,6 +135,10 @@ defmodule WorkflowDslTest do
     input = "${(1.0 * (2 + -3.5)) * (-sum)}"
     output = input |> WorkflowDsl.MathExprParser.parse_math()
     Logger.log(:debug, "math expression #{input}: #{inspect output}")
+
+    input = "${incoming_messages.body[\"response\"]}"
+    output = input |> WorkflowDsl.MathExprParser.parse_math()
+    Logger.log(:debug, "math expression #{input}: #{inspect output}")
   end
 
   @tag :skip
