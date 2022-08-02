@@ -78,15 +78,18 @@ defmodule Mix.Tasks.Wf do
 
     defp run_process(input, subworkflow_name \\ "", args_body \\ %{}) do
       rand = Randomizer.randomizer(8)
-      if String.starts_with?(input, ["http://", "https://"]) do
-        {:ok, content} = Req.request(method: :get, url: input)
-        content.body
-        |> WorkflowDsl.JsonExprParser.process(:stream)
-        |> WorkflowDsl.Interpreter.process(rand, subworkflow_name, args_body, true)
-      else
+      if File.exists?(input) do
         input
-        |> WorkflowDsl.JsonExprParser.process(:file)
-        |> WorkflowDsl.Interpreter.process(rand, subworkflow_name, args_body, true)
+          |> WorkflowDsl.JsonExprParser.process(:file)
+          |> WorkflowDsl.Interpreter.process(rand, subworkflow_name, args_body, true)
+      else
+        case String.starts_with?(input, ["http://", "https://"]) do
+          true -> {:ok, content} = Req.request(method: :get, url: input)
+            content.body
+          _ -> input
+        end
+          |> WorkflowDsl.JsonExprParser.process(:stream)
+          |> WorkflowDsl.Interpreter.process(rand, subworkflow_name, args_body, true)
       end
       rand
     end
