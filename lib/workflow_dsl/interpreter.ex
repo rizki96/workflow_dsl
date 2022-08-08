@@ -449,7 +449,7 @@ defmodule WorkflowDsl.Interpreter do
     end
   end
 
-  def maybe_execute_function(session, uid) do
+  defp maybe_execute_function(session, uid) do
     func = Storages.get_function_by(%{"session" => session, "uid" => uid})
     if func != nil and :erlang.binary_to_term(func.module) != Elixir.WorkflowDsl.SubWorkflow do
       if not is_nil(func.name) and not is_nil(func.args) do
